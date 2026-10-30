@@ -1,0 +1,67 @@
+package com.example.activation;
+
+import com.example.activation.application.ActivationRequestService;
+import com.example.activation.application.CreateActivationCommand;
+import com.example.activation.application.CreationResult;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Dispara várias criações simultâneas com o mesmo externalId contra um banco real.
+ * Executado em H2 e em PostgreSQL (Testcontainers).
+ */
+abstract class ConcurrentCreationContract {
+
+    private static final int CONCURRENT_REQUESTS = 16;
+
+    @Autowired
+    private ActivationRequestService service;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void concurrentDuplicatesCreateExactlyOneRequest() throws Exception {
+        var externalId = "EXT-" + UUID.randomUUID();
+        var command = new CreateActivationCommand("concurrency-client", externalId, "CUST-1", "INTERNET-500", "corr");
+        var startSignal = new CountDownLatch(1);
+        Callable<CreationResult> createAfterSignal = () -> {
+            startSignal.await();
+            return service.create(command);
+        };
+
+        var results = new ArrayList<CreationResult>();
+        try (var executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS)) {
+            var futures = new ArrayList<Future<CreationResult>>();
+            for (int i = 0; i < CONCURRENT_REQUESTS; i++) {
+                futures.add(executor.submit(createAfterSignal));
+            }
+            startSignal.countDown();
+            for (var future : futures) {
+                results.add(future.get(30, TimeUnit.SECONDS));
+            }
+        }
+
+        assertThat(results).filteredOn(CreationResult::created).hasSize(1);
+        var winnerId = results.stream().filter(CreationResult::created).findFirst().orElseThrow().request().getId();
+        assertThat(results).allSatisfy(result -> assertThat(result.request().getId()).isEqualTo(winnerId));
+        assertThat(countRows(externalId)).isEqualTo(1);
+    }
+
+    private long countRows(String externalId) {
+        List<Long> counts = jdbcTemplate.queryForList(
+                "select count(*) from activation_request where external_id = ?", Long.class, externalId);
+        return counts.getFirst();
+    }
+}
