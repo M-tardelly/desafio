@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: activation
+      POSTGRES_USER: activation
+      POSTGRES_PASSWORD: activation
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U activation -d activation"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Simula o provedor externo (POST /provider/v1/activate) e o JWKS do servidor de autorização.
+  wiremock:
+    image: wiremock/wiremock:3.13.2
+    command: ["--disable-banner"]
+    volumes:
+      - ./docker/wiremock:/home/wiremock:ro
+    ports:
+      - "8089:8080"
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      wiremock:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/activation
+      DB_USERNAME: activation
+      DB_PASSWORD: activation
+      PROVIDER_BASE_URL: http://wiremock:8080
+      JWT_JWK_SET_URI: http://wiremock:8080/auth/jwks.json
+      JWT_ISSUER: https://auth.dev.local
+      JWT_AUDIENCE: activation-service
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    stop_grace_period: 30s
