@@ -1,14 +1,15 @@
 package com.example.activation.service.impl;
 
+import com.example.activation.dto.provider.ProviderActivationResult;
 import com.example.activation.dto.provider.ProviderActivationResult.Activated;
 import com.example.activation.dto.provider.ProviderActivationResult.Rejected;
 import com.example.activation.dto.provider.ProviderActivationResult.TemporaryFailure;
-import com.example.activation.dto.provider.ProviderActivationResult;
 import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationRequest;
 import com.example.activation.service.ProviderService;
 import com.example.activation.utils.CorrelationIdUtils;
 import com.example.activation.utils.LogBuilder;
+import com.example.activation.utils.RetryAfterUtils;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -26,11 +26,6 @@ import org.springframework.web.client.RestClientException;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 
 /**
  * Cliente HTTP do provedor ({@code POST /provider/v1/activate}).
@@ -94,7 +89,7 @@ public class ProviderServiceImpl implements ProviderService {
         }
         if (isRetryable(status)) {
             return new TemporaryFailure("Provedor indisponível (HTTP %d)".formatted(status.value()),
-                    parseRetryAfter(headers.getFirst(HttpHeaders.RETRY_AFTER)));
+                    RetryAfterUtils.parse(headers.getFirst(HttpHeaders.RETRY_AFTER), clock.instant()));
         }
         if (status.is4xxClientError()) {
             return new Rejected("Provedor recusou a solicitação (HTTP %d)".formatted(status.value()));
@@ -112,24 +107,6 @@ public class ProviderServiceImpl implements ProviderService {
             return "Timeout na chamada ao provedor (resultado desconhecido)";
         }
         return "Falha de conexão com o provedor";
-    }
-
-    private Duration parseRetryAfter(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        try {
-            return Duration.ofSeconds(Long.parseLong(value.trim()));
-        } catch (NumberFormatException ignored) {
-            // Retry-After também pode ser uma data HTTP
-        }
-        try {
-            Instant retryAt = ZonedDateTime.parse(value.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
-            Duration delay = Duration.between(clock.instant(), retryAt);
-            return delay.isNegative() ? Duration.ZERO : delay;
-        } catch (DateTimeParseException e) {
-            return null;
-        }
     }
 
     private static String outcomeTag(ProviderActivationResult result) {

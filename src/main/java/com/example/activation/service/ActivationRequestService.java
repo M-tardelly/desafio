@@ -1,9 +1,9 @@
 package com.example.activation.service;
 
+import com.example.activation.dto.command.ActivationRequestQuery;
 import com.example.activation.dto.command.CreateActivationCommand;
 import com.example.activation.dto.command.CreateActivationResult;
 import com.example.activation.model.ActivationRequest;
-import com.example.activation.model.ActivationStatus;
 import org.springframework.data.domain.Page;
 
 import java.util.UUID;
@@ -23,5 +23,8 @@ public interface ActivationRequestService {
      */
     ActivationRequest findForClient(UUID id, String clientId);
 
-    Page<ActivationRequest> list(String clientId, ActivationStatus status, String customerId, int page, int size);
+    /**
+     * Solicitações do sistema consumidor, das mais recentes para as mais antigas.
+     */
+    Page<ActivationRequest> list(ActivationRequestQuery query);
 }

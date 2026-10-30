@@ -2,13 +2,15 @@ package com.example.activation.service.impl;
 
 import com.example.activation.config.ProcessingProperties;
 import com.example.activation.dto.provider.ProviderActivationResult;
+import com.example.activation.dto.provider.ProviderActivationResult.Activated;
+import com.example.activation.dto.provider.ProviderActivationResult.Rejected;
+import com.example.activation.dto.provider.ProviderActivationResult.TemporaryFailure;
 import com.example.activation.exception.InvalidStatusTransitionException;
 import com.example.activation.model.ActivationRequest;
 import com.example.activation.model.ActivationStatus;
 import com.example.activation.repository.ActivationRequestRepository;
 import com.example.activation.service.ActivationProcessingService;
 import com.example.activation.service.ProviderService;
-import com.example.activation.utils.BackoffUtils;
 import com.example.activation.utils.CorrelationIdUtils;
 import com.example.activation.utils.LogBuilder;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -21,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,9 @@ import java.util.UUID;
  * </ol>
  * Se a aplicação cair entre os passos, a solicitação continua PENDING ou fica presa em PROCESSING
  * e é reagendada por {@link #recoverStuckRequests()}.
+ * <p>
+ * As transações são programáticas ({@link TransactionTemplate}) porque {@code @Transactional} não se aplica
+ * a chamadas entre métodos da mesma classe.
  */
 @Slf4j
 @Service
@@ -46,6 +50,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
 
     private final ActivationRequestRepository repository;
     private final ProviderService providerService;
+    private final RetryPolicy retryPolicy;
     private final TransactionTemplate transactionTemplate;
     private final ProcessingProperties properties;
     private final Clock clock;
@@ -69,32 +74,11 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
         List<UUID> stuckIds = repository.findIdsStuckInProcessing(threshold, Limit.of(properties.batchSize()));
         int recovered = 0;
         for (UUID id : stuckIds) {
-            try {
-                if (Boolean.TRUE.equals(transactionTemplate.execute(tx -> recover(id, threshold)))) {
-                    recovered++;
-                }
-            } catch (OptimisticLockingFailureException e) {
-                LogBuilder.debug(log, "Request changed while being recovered, skipping")
-                        .with("requestId", id)
-                        .log();
+            if (recover(id, threshold)) {
+                recovered++;
             }
         }
         return recovered;
-    }
-
-    private boolean recover(UUID id, Instant threshold) {
-        ActivationRequest request = repository.findById(id).orElse(null);
-        if (request == null || request.getStatus() != ActivationStatus.PROCESSING
-                || !request.getUpdatedAt().isBefore(threshold)) {
-            return false;
-        }
-        LogBuilder.warn(log, "Request stuck in PROCESSING, rescheduling")
-                .with("requestId", id)
-                .with("processingSince", request.getUpdatedAt())
-                .with("attempts", request.getAttempts())
-                .log();
-        handleTemporaryFailure(request, "Processamento interrompido antes da resposta do provedor", null);
-        return true;
     }
 
     private boolean process(UUID id) {
@@ -105,7 +89,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
         ActivationRequest request = claimed.get();
         try (MDC.MDCCloseable ignored = CorrelationIdUtils.bind(request.getCorrelationId())) {
             ProviderActivationResult result = callProvider(request);
-            applyResult(id, result);
+            saveResult(id, result);
         }
         return true;
     }
@@ -136,20 +120,15 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
                     .with("requestId", request.getId())
                     .exception(e)
                     .log();
-            return new ProviderActivationResult.TemporaryFailure("Erro inesperado na integração com o provedor", null);
+            return new TemporaryFailure("Erro inesperado na integração com o provedor", null);
         }
     }
 
-    private void applyResult(UUID id, ProviderActivationResult result) {
+    private void saveResult(UUID id, ProviderActivationResult result) {
         try {
             transactionTemplate.executeWithoutResult(tx -> {
                 ActivationRequest request = repository.findById(id).orElseThrow();
-                switch (result) {
-                    case ProviderActivationResult.Activated activated -> request.complete(clock.instant());
-                    case ProviderActivationResult.Rejected rejected -> request.fail(rejected.reason(), clock.instant());
-                    case ProviderActivationResult.TemporaryFailure failure ->
-                            handleTemporaryFailure(request, failure.reason(), failure.retryAfter());
-                }
+                applyResult(request, result);
                 LogBuilder.info(log, "Provider result applied")
                         .with("requestId", id)
                         .with("status", request.getStatus())
@@ -169,15 +148,37 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
         }
     }
 
-    private void handleTemporaryFailure(ActivationRequest request, String reason, Duration retryAfter) {
-        Instant now = clock.instant();
-        if (request.getAttempts() >= properties.maxAttempts()) {
-            request.fail("Limite de %d tentativas atingido. Último erro: %s"
-                    .formatted(request.getAttempts(), reason), now);
-            return;
+    private void applyResult(ActivationRequest request, ProviderActivationResult result) {
+        switch (result) {
+            case Activated activated -> request.complete(clock.instant());
+            case Rejected rejected -> request.fail(rejected.reason(), clock.instant());
+            case TemporaryFailure failure ->
+                    retryPolicy.onTemporaryFailure(request, failure.reason(), failure.retryAfter());
         }
-        Duration delay = BackoffUtils.nextDelay(request.getAttempts(), properties.initialBackoff(),
-                properties.maxBackoff(), retryAfter);
-        request.scheduleRetry(now.plus(delay), reason, now);
+    }
+
+    private boolean recover(UUID id, Instant threshold) {
+        try {
+            return Boolean.TRUE.equals(transactionTemplate.execute(tx -> {
+                ActivationRequest request = repository.findById(id).orElse(null);
+                if (request == null || request.getStatus() != ActivationStatus.PROCESSING
+                        || !request.getUpdatedAt().isBefore(threshold)) {
+                    return false;
+                }
+                LogBuilder.warn(log, "Request stuck in PROCESSING, rescheduling")
+                        .with("requestId", id)
+                        .with("processingSince", request.getUpdatedAt())
+                        .with("attempts", request.getAttempts())
+                        .log();
+                retryPolicy.onTemporaryFailure(request,
+                        "Processamento interrompido antes da resposta do provedor", null);
+                return true;
+            }));
+        } catch (OptimisticLockingFailureException e) {
+            LogBuilder.debug(log, "Request changed while being recovered, skipping")
+                    .with("requestId", id)
+                    .log();
+            return false;
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.activation.controller;
 
 import com.example.activation.config.CurrentClientId;
+import com.example.activation.dto.command.ActivationRequestQuery;
 import com.example.activation.dto.command.CreateActivationCommand;
 import com.example.activation.dto.command.CreateActivationResult;
 import com.example.activation.dto.request.CreateActivationRequest;
@@ -71,6 +72,7 @@ public class ActivationRequestController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @CurrentClientId String clientId) {
-        return mapper.toPageResponse(service.list(clientId, status, customerId, page, size));
+        ActivationRequestQuery query = new ActivationRequestQuery(clientId, status, customerId, page, size);
+        return mapper.toPageResponse(service.list(query));
     }
 }
