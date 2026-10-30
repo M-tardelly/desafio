@@ -1,23 +1,33 @@
 package com.example.activation.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
  * Corpo de {@code POST /api/v1/requests}.
+ *
+ * @param externalId  identificador da solicitação no sistema de origem (único por sistema consumidor)
+ * @param customerId  cliente que terá o produto ativado
+ * @param productCode produto a ser ativado
+ * @since 2026-10-29
  */
 public record CreateActivationRequest(
+        @Schema(description = "Identificador da solicitação no sistema de origem; repetir o mesmo valor é seguro",
+                example = "EXT-12345")
         @NotBlank(message = REQUIRED)
         @Size(max = MAX_LENGTH, message = TOO_LONG)
         @Pattern(regexp = IDENTIFIER, message = INVALID_IDENTIFIER)
         String externalId,
 
+        @Schema(description = "Cliente que terá o produto ativado", example = "CUST-10001")
         @NotBlank(message = REQUIRED)
         @Size(max = MAX_LENGTH, message = TOO_LONG)
         @Pattern(regexp = IDENTIFIER, message = INVALID_IDENTIFIER)
         String customerId,
 
+        @Schema(description = "Produto a ser ativado", example = "INTERNET-500")
         @NotBlank(message = REQUIRED)
         @Size(max = MAX_LENGTH, message = TOO_LONG)
         @Pattern(regexp = IDENTIFIER, message = INVALID_IDENTIFIER)

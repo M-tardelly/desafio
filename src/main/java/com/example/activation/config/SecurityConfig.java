@@ -17,13 +17,30 @@ import org.springframework.util.StringUtils;
 /**
  * Resource Server OAuth 2.0: valida JWTs emitidos pelo servidor de autorização (assinatura via JWKS,
  * emissor, audiência e expiração, configurados em {@code spring.security.oauth2.resourceserver.jwt}).
+ *
+ * @since 2026-10-29
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
 
+    /**
+     * Autoridade exigida para consultar e listar (escopo {@code activation:read} do token).
+     */
     public static final String SCOPE_READ = "SCOPE_activation:read";
+
+    /**
+     * Autoridade exigida para criar (escopo {@code activation:write} do token).
+     */
     public static final String SCOPE_WRITE = "SCOPE_activation:write";
 
+    /**
+     * API stateless protegida por JWT: escrita exige {@value #SCOPE_WRITE}, leitura exige {@value #SCOPE_READ};
+     * health checks e documentação OpenAPI são públicos; qualquer outra rota é negada.
+     *
+     * @param http configuração de segurança HTTP
+     * @return cadeia de filtros de segurança
+     * @throws Exception se a configuração for inválida
+     */
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
@@ -32,6 +49,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus", "/error")
                         .permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/requests").hasAuthority(SCOPE_WRITE)
                         .requestMatchers(HttpMethod.GET, "/api/v1/requests", "/api/v1/requests/*")
                         .hasAuthority(SCOPE_READ)

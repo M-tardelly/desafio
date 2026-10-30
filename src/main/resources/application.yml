@@ -32,6 +32,16 @@ server:
     include-stacktrace: never
     include-message: never
 
+springdoc:
+  default-produces-media-type: application/json
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /swagger-ui.html
+    persist-authorization: true
+    operations-sorter: method
+
 management:
   endpoints:
     web:

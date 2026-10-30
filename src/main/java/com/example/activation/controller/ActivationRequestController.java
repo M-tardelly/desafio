@@ -11,9 +11,6 @@ import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationStatus;
 import com.example.activation.service.ActivationRequestService;
 import com.example.activation.utils.CorrelationIdUtils;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,23 +26,25 @@ import java.net.URI;
 import java.util.UUID;
 
 /**
+ * Endpoints REST de solicitações de ativação ({@code /api/v1/requests}).
+ * <p>
  * Todas as operações recebem o sistema consumidor autenticado ({@link CurrentClientId}) e só enxergam
- * as solicitações dele, para que um sistema não acesse solicitações de outro.
+ * as solicitações dele, para que um sistema não acesse solicitações de outro. A documentação OpenAPI e as
+ * validações de entrada ficam em {@link ActivationRequestApi}.
+ *
+ * @since 2026-10-29
  */
 @RestController
 @RequestMapping("/api/v1/requests")
 @RequiredArgsConstructor
-public class ActivationRequestController {
+public class ActivationRequestController implements ActivationRequestApi {
 
     private final ActivationRequestService service;
     private final ActivationRequestMapper mapper;
 
-    /**
-     * 201 quando a solicitação é criada; 200 com o registro existente quando é uma repetição
-     * com o mesmo conteúdo (retry do sistema de origem).
-     */
+    @Override
     @PostMapping
-    public ResponseEntity<ActivationRequestResponse> create(@Valid @RequestBody CreateActivationRequest body,
+    public ResponseEntity<ActivationRequestResponse> create(@RequestBody CreateActivationRequest body,
                                                             @CurrentClientId String clientId) {
         CreateActivationCommand command = mapper.toCommand(body, clientId, CorrelationIdUtils.current());
         CreateActivationResult result = service.create(command);
@@ -60,17 +59,19 @@ public class ActivationRequestController {
                 : ResponseEntity.ok().location(location).body(response);
     }
 
+    @Override
     @GetMapping("/{id}")
     public ActivationRequestResponse get(@PathVariable UUID id, @CurrentClientId String clientId) {
         return mapper.toResponse(service.findForClient(id, clientId));
     }
 
+    @Override
     @GetMapping
     public PageResponse<ActivationRequestResponse> list(
             @RequestParam(required = false) ActivationStatus status,
             @RequestParam(required = false) String customerId,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @CurrentClientId String clientId) {
         ActivationRequestQuery query = new ActivationRequestQuery(clientId, status, customerId, page, size);
         return mapper.toPageResponse(service.list(query));
