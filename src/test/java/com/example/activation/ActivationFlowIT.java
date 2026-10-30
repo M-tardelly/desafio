@@ -1,8 +1,8 @@
 package com.example.activation;
 
-import com.example.activation.application.ActivationProcessor;
-import com.example.activation.domain.ActivationRequestRepository;
-import com.example.activation.domain.ActivationStatus;
+import com.example.activation.service.ActivationProcessingService;
+import com.example.activation.repository.ActivationRequestRepository;
+import com.example.activation.model.ActivationStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -67,7 +67,7 @@ class ActivationFlowIT {
     @Autowired
     private ObjectMapper objectMapper;
     @Autowired
-    private ActivationProcessor processor;
+    private ActivationProcessingService processor;
     @Autowired
     private ActivationRequestRepository repository;
     @Autowired

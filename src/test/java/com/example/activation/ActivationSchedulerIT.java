@@ -1,9 +1,9 @@
 package com.example.activation;
 
-import com.example.activation.application.ActivationRequestService;
-import com.example.activation.application.CreateActivationCommand;
-import com.example.activation.domain.ActivationRequestRepository;
-import com.example.activation.domain.ActivationStatus;
+import com.example.activation.service.ActivationRequestService;
+import com.example.activation.dto.CreateActivationCommand;
+import com.example.activation.repository.ActivationRequestRepository;
+import com.example.activation.model.ActivationStatus;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;

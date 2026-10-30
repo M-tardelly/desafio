@@ -1,8 +1,8 @@
 package com.example.activation;
 
-import com.example.activation.application.ActivationRequestService;
-import com.example.activation.application.CreateActivationCommand;
-import com.example.activation.application.CreationResult;
+import com.example.activation.service.ActivationRequestService;
+import com.example.activation.dto.CreateActivationCommand;
+import com.example.activation.dto.CreationResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
