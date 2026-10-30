@@ -29,5 +29,5 @@ class ArchitectureTest {
     static final ArchRule modelDoesNotDependOnOtherLayers = noClasses()
             .that().resideInAPackage("..model..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("..controller..", "..service..", "..repository..", "..dto..", "..handler..");
+            .resideInAnyPackage("..controller..", "..service..", "..repository..", "..dto..", "..mapper..", "..handler..");
 }

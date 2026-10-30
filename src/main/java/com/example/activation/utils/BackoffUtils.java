@@ -1,5 +1,7 @@
 package com.example.activation.utils;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -7,12 +9,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * Backoff exponencial com jitter ("equal jitter": metade fixa, metade aleatória) para evitar que
  * várias solicitações que falharam juntas voltem ao provedor no mesmo instante.
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class BackoffUtils {
 
     private static final int MAX_EXPONENT = 20;
-
-    private BackoffUtils() {
-    }
 
     /**
      * @param retryAfter tempo pedido pelo provedor; quando presente, tem prioridade sobre o cálculo.

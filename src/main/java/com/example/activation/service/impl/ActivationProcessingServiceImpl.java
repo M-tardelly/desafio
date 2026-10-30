@@ -11,8 +11,8 @@ import com.example.activation.service.ProviderService;
 import com.example.activation.utils.BackoffUtils;
 import com.example.activation.utils.CorrelationIdUtils;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -37,10 +37,10 @@ import java.util.UUID;
  * Se a aplicação cair entre os passos, a solicitação continua PENDING ou fica presa em PROCESSING
  * e é reagendada por {@link #recoverStuckRequests()}.
  */
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class ActivationProcessingServiceImpl implements ActivationProcessingService {
-
-    private static final Logger log = LoggerFactory.getLogger(ActivationProcessingServiceImpl.class);
 
     private final ActivationRequestRepository repository;
     private final ProviderService providerService;
@@ -48,17 +48,6 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
     private final ProcessingProperties properties;
     private final Clock clock;
     private final MeterRegistry meterRegistry;
-
-    public ActivationProcessingServiceImpl(ActivationRequestRepository repository, ProviderService providerService,
-                                           TransactionTemplate transactionTemplate, ProcessingProperties properties,
-                                           Clock clock, MeterRegistry meterRegistry) {
-        this.repository = repository;
-        this.providerService = providerService;
-        this.transactionTemplate = transactionTemplate;
-        this.properties = properties;
-        this.clock = clock;
-        this.meterRegistry = meterRegistry;
-    }
 
     @Override
     public int processDueRequests() {

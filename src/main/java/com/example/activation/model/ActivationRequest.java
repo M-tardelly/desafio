@@ -8,6 +8,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -15,8 +18,13 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Sem setters: o status só muda pelos métodos de transição, que validam as regras de {@link ActivationStatus}.
+ */
 @Entity
 @Table(name = "activation_request")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ActivationRequest {
 
     private static final int LAST_ERROR_MAX_LENGTH = 500;
@@ -59,10 +67,8 @@ public class ActivationRequest {
     private Instant updatedAt;
 
     @Version
+    @Getter(AccessLevel.NONE)
     private Long version;
-
-    protected ActivationRequest() {
-    }
 
     public static ActivationRequest create(String clientId, String externalId, String customerId,
                                            String productCode, String correlationId, Instant now) {
@@ -124,53 +130,5 @@ public class ActivationRequest {
             return value;
         }
         return value.substring(0, LAST_ERROR_MAX_LENGTH);
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public String getClientId() {
-        return clientId;
-    }
-
-    public String getExternalId() {
-        return externalId;
-    }
-
-    public String getCustomerId() {
-        return customerId;
-    }
-
-    public String getProductCode() {
-        return productCode;
-    }
-
-    public ActivationStatus getStatus() {
-        return status;
-    }
-
-    public int getAttempts() {
-        return attempts;
-    }
-
-    public Instant getNextAttemptAt() {
-        return nextAttemptAt;
-    }
-
-    public String getLastError() {
-        return lastError;
-    }
-
-    public String getCorrelationId() {
-        return correlationId;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
     }
 }

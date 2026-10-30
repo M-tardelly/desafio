@@ -1,23 +1,21 @@
 package com.example.activation.service.impl;
 
-import com.example.activation.config.ProviderProperties;
-import com.example.activation.dto.ProviderActivationRequest;
 import com.example.activation.dto.ProviderResult;
 import com.example.activation.dto.ProviderResult.Activated;
 import com.example.activation.dto.ProviderResult.Rejected;
 import com.example.activation.dto.ProviderResult.TemporaryFailure;
+import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationRequest;
 import com.example.activation.service.ProviderService;
 import com.example.activation.utils.CorrelationIdUtils;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
@@ -25,7 +23,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.net.SocketTimeoutException;
-import java.net.http.HttpClient;
 import java.net.http.HttpTimeoutException;
 import java.time.Clock;
 import java.time.Duration;
@@ -36,36 +33,21 @@ import java.time.format.DateTimeParseException;
 /**
  * Cliente HTTP do provedor ({@code POST /provider/v1/activate}).
  */
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class ProviderServiceImpl implements ProviderService {
 
     static final String ACTIVATE_PATH = "/provider/v1/activate";
     static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
-    static final String API_KEY_HEADER = "X-Api-Key";
 
-    private static final Logger log = LoggerFactory.getLogger(ProviderServiceImpl.class);
-
-    private final RestClient restClient;
+    /**
+     * Configurado em {@link com.example.activation.config.ProviderClientConfig} (URL, timeouts e credencial).
+     */
+    private final RestClient providerRestClient;
+    private final ActivationRequestMapper mapper;
     private final Clock clock;
     private final MeterRegistry meterRegistry;
-
-    public ProviderServiceImpl(RestClient.Builder builder, ProviderProperties properties, Clock clock,
-                               MeterRegistry meterRegistry) {
-        var httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(properties.connectTimeout())
-                .build();
-        var requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(properties.readTimeout());
-
-        builder.baseUrl(properties.baseUrl()).requestFactory(requestFactory);
-        if (StringUtils.hasText(properties.apiKey())) {
-            builder.defaultHeader(API_KEY_HEADER, properties.apiKey());
-        }
-        this.restClient = builder.build();
-        this.clock = clock;
-        this.meterRegistry = meterRegistry;
-    }
 
     @Override
     public ProviderResult activate(ActivationRequest request) {
@@ -77,7 +59,7 @@ public class ProviderServiceImpl implements ProviderService {
 
     private ProviderResult send(ActivationRequest request) {
         try {
-            return restClient.post()
+            return providerRestClient.post()
                     .uri(ACTIVATE_PATH)
                     .headers(headers -> {
                         // o id da solicitação é a chave de idempotência: o mesmo valor em todas as tentativas
@@ -87,8 +69,7 @@ public class ProviderServiceImpl implements ProviderService {
                         }
                     })
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(new ProviderActivationRequest(request.getId(), request.getCustomerId(),
-                            request.getProductCode()))
+                    .body(mapper.toProviderRequest(request))
                     .exchange((httpRequest, response) -> toResult(response.getStatusCode(), response.getHeaders()));
         } catch (ResourceAccessException e) {
             log.warn("Provider call for request {} failed: {}", request.getId(), e.getMessage());

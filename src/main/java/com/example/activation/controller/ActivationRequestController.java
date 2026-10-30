@@ -1,15 +1,16 @@
 package com.example.activation.controller;
 
 import com.example.activation.dto.ActivationRequestResponse;
-import com.example.activation.dto.CreateActivationCommand;
 import com.example.activation.dto.CreateActivationRequest;
 import com.example.activation.dto.PageResponse;
+import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationStatus;
 import com.example.activation.service.ActivationRequestService;
 import com.example.activation.utils.CorrelationIdUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,13 +29,11 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/requests")
+@RequiredArgsConstructor
 public class ActivationRequestController {
 
     private final ActivationRequestService service;
-
-    public ActivationRequestController(ActivationRequestService service) {
-        this.service = service;
-    }
+    private final ActivationRequestMapper mapper;
 
     /**
      * 201 quando a solicitação é criada; 200 com o registro existente quando é uma repetição
@@ -43,10 +42,9 @@ public class ActivationRequestController {
     @PostMapping
     public ResponseEntity<ActivationRequestResponse> create(@Valid @RequestBody CreateActivationRequest body,
                                                             @AuthenticationPrincipal Jwt jwt) {
-        var command = new CreateActivationCommand(clientId(jwt), body.externalId(), body.customerId(),
-                body.productCode(), CorrelationIdUtils.current());
+        var command = mapper.toCommand(body, clientId(jwt), CorrelationIdUtils.current());
         var result = service.create(command);
-        var response = ActivationRequestResponse.from(result.request());
+        var response = mapper.toResponse(result.request());
         var location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(response.id())
@@ -59,7 +57,7 @@ public class ActivationRequestController {
 
     @GetMapping("/{id}")
     public ActivationRequestResponse get(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
-        return ActivationRequestResponse.from(service.findForClient(id, clientId(jwt)));
+        return mapper.toResponse(service.findForClient(id, clientId(jwt)));
     }
 
     @GetMapping
@@ -69,8 +67,7 @@ public class ActivationRequestController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @AuthenticationPrincipal Jwt jwt) {
-        var result = service.list(clientId(jwt), status, customerId, page, size);
-        return PageResponse.from(result, ActivationRequestResponse::from);
+        return mapper.toPageResponse(service.list(clientId(jwt), status, customerId, page, size));
     }
 
     /**

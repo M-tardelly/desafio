@@ -1,23 +1,19 @@
 package com.example.activation.scheduler;
 
 import com.example.activation.service.ActivationProcessingService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
+@RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "app.processing", name = "scheduler-enabled", havingValue = "true", matchIfMissing = true)
 public class ActivationScheduler {
 
-    private static final Logger log = LoggerFactory.getLogger(ActivationScheduler.class);
-
     private final ActivationProcessingService processingService;
-
-    public ActivationScheduler(ActivationProcessingService processingService) {
-        this.processingService = processingService;
-    }
 
     @Scheduled(fixedDelayString = "${app.processing.poll-interval:PT1S}")
     public void run() {

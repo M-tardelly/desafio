@@ -8,8 +8,8 @@ import com.example.activation.model.ActivationRequest;
 import com.example.activation.model.ActivationStatus;
 import com.example.activation.repository.ActivationRequestRepository;
 import com.example.activation.service.ActivationRequestService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,18 +23,13 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class ActivationRequestServiceImpl implements ActivationRequestService {
-
-    private static final Logger log = LoggerFactory.getLogger(ActivationRequestServiceImpl.class);
 
     private final ActivationRequestRepository repository;
     private final Clock clock;
-
-    public ActivationRequestServiceImpl(ActivationRequestRepository repository, Clock clock) {
-        this.repository = repository;
-        this.clock = clock;
-    }
 
     /**
      * Não é transacional de propósito: o INSERT roda em uma transação própria (saveAndFlush) para que,

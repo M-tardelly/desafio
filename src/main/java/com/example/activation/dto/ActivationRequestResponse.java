@@ -1,6 +1,5 @@
 package com.example.activation.dto;
 
-import com.example.activation.model.ActivationRequest;
 import com.example.activation.model.ActivationStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -18,17 +17,4 @@ public record ActivationRequestResponse(
         String lastError,
         Instant createdAt,
         Instant updatedAt) {
-
-    public static ActivationRequestResponse from(ActivationRequest request) {
-        return new ActivationRequestResponse(
-                request.getId(),
-                request.getExternalId(),
-                request.getCustomerId(),
-                request.getProductCode(),
-                request.getStatus(),
-                request.getAttempts(),
-                request.getLastError(),
-                request.getCreatedAt(),
-                request.getUpdatedAt());
-    }
 }

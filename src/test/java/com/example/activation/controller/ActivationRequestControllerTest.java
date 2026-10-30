@@ -6,6 +6,7 @@ import com.example.activation.dto.CreationResult;
 import com.example.activation.exception.DuplicateRequestConflictException;
 import com.example.activation.exception.RequestNotFoundException;
 import com.example.activation.config.SecurityConfig;
+import com.example.activation.mapper.ActivationRequestMapperImpl;
 import com.example.activation.model.ActivationRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ActivationRequestController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, ActivationRequestMapperImpl.class})
 class ActivationRequestControllerTest {
 
     private static final String VALID_BODY = """

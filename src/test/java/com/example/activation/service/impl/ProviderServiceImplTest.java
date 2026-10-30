@@ -1,7 +1,9 @@
 package com.example.activation.service.impl;
 
+import com.example.activation.config.ProviderClientConfig;
 import com.example.activation.config.ProviderProperties;
 import com.example.activation.dto.ProviderResult;
+import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationRequest;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mapstruct.factory.Mappers;
 import org.springframework.web.client.RestClient;
 
 import java.time.Clock;
@@ -44,7 +47,9 @@ class ProviderServiceImplTest {
 
     private static ProviderServiceImpl newService(String baseUrl, Duration timeout, String apiKey) {
         var properties = new ProviderProperties(baseUrl, timeout, timeout, apiKey);
-        return new ProviderServiceImpl(RestClient.builder(), properties, Clock.systemUTC(), new SimpleMeterRegistry());
+        var restClient = new ProviderClientConfig().providerRestClient(RestClient.builder(), properties);
+        return new ProviderServiceImpl(restClient, Mappers.getMapper(ActivationRequestMapper.class), Clock.systemUTC(),
+                new SimpleMeterRegistry());
     }
 
     @Test
