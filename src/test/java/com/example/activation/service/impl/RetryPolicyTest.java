@@ -12,6 +12,11 @@ import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Decisão entre nova tentativa e falha definitiva após uma falha temporária.
+ *
+ * @since 2026-10-29
+ */
 class RetryPolicyTest {
 
     private static final Instant NOW = Instant.parse("2026-10-26T14:03:11Z");

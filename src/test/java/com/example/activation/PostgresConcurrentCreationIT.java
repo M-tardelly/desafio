@@ -10,6 +10,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * Também valida as migrations Flyway e o mapeamento JPA ({@code ddl-auto=validate}) no PostgreSQL.
  * Ignorado automaticamente quando não há Docker disponível.
+ *
+ * @since 2026-10-29
  */
 @SpringBootTest
 @ActiveProfiles("test")

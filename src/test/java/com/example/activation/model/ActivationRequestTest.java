@@ -11,6 +11,11 @@ import java.time.Instant;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Regras de transição de status da entidade, sem Spring.
+ *
+ * @since 2026-10-29
+ */
 class ActivationRequestTest {
 
     private static final Instant NOW = Instant.parse("2026-10-26T14:03:11Z");

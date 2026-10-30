@@ -22,6 +22,11 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+/**
+ * Verifica que o agendador processa as solicitações em segundo plano, sem chamada explícita.
+ *
+ * @since 2026-10-29
+ */
 @SpringBootTest(properties = {
         // banco próprio: este contexto fica em cache com o scheduler ativo e não pode processar dados de outros testes
         "spring.datasource.url=jdbc:h2:mem:scheduler-it;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",

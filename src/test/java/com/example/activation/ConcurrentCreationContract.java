@@ -22,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Dispara várias criações simultâneas com o mesmo externalId contra um banco real.
  * Executado em H2 e em PostgreSQL (Testcontainers).
+ *
+ * @since 2026-10-29
  */
 abstract class ConcurrentCreationContract {
 

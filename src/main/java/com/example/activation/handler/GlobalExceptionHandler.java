@@ -28,6 +28,8 @@ import java.util.List;
 /**
  * Todas as respostas de erro seguem o Problem Details (RFC 9457) e levam o {@code traceId}
  * (identificador de correlação) para localizar o erro nos logs. Detalhes internos nunca são expostos.
+ *
+ * @since 2026-10-29
  */
 @Slf4j
 @RestControllerAdvice
@@ -35,11 +37,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String PROBLEM_BASE_URI = "https://api.exemplo.com/problems/";
 
+    /**
+     * Solicitação inexistente ou de outro sistema consumidor: 404.
+     */
     @ExceptionHandler(RequestNotFoundException.class)
     ProblemDetail handleNotFound(RequestNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, "not-found", "Solicitação não encontrada", ex.getMessage());
     }
 
+    /**
+     * Mesmo externalId com conteúdo diferente: 409, com o id da solicitação existente.
+     */
     @ExceptionHandler(DuplicateRequestConflictException.class)
     ProblemDetail handleDuplicate(DuplicateRequestConflictException ex) {
         ProblemDetail problem = problem(HttpStatus.CONFLICT, "duplicate-request", "Solicitação duplicada", ex.getMessage());
@@ -47,6 +55,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    /**
+     * Alteração concorrente ou transição de status inválida: 409.
+     */
     @ExceptionHandler({InvalidStatusTransitionException.class, OptimisticLockingFailureException.class})
     ProblemDetail handleStateConflict(RuntimeException ex) {
         LogBuilder.warn(log, "State conflict")
@@ -56,11 +67,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "A solicitação foi alterada por outra operação. Tente novamente.");
     }
 
+    /**
+     * Acesso negado lançado pela aplicação: 403.
+     */
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail handleAccessDenied(AccessDeniedException ex) {
         return problem(HttpStatus.FORBIDDEN, "forbidden", "Acesso negado", ex.getMessage());
     }
 
+    /**
+     * Qualquer erro não tratado: 500 com mensagem genérica; o stack trace vai apenas para o log.
+     */
     @ExceptionHandler(Exception.class)
     ProblemDetail handleUnexpected(Exception ex) {
         LogBuilder.error(log, "Unexpected error")
@@ -70,6 +87,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "Ocorreu um erro inesperado. Informe o traceId ao suporte.");
     }
 
+    /**
+     * Corpo da requisição inválido: 400 com a lista de campos e mensagens.
+     */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers, HttpStatusCode status,
@@ -80,6 +100,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, validationProblem(errors), headers, status, request);
     }
 
+    /**
+     * Parâmetros de query/path inválidos (ex.: {@code size} acima do limite): 400 com a lista de parâmetros.
+     */
     @Override
     protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException ex,
                                                                            HttpHeaders headers,
@@ -93,6 +116,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, validationProblem(errors), headers, status, request);
     }
 
+    /**
+     * Inclui o {@code traceId} também nos erros tratados pela classe base do Spring.
+     */
     @Override
     protected ResponseEntity<Object> createResponseEntity(@Nullable Object body, HttpHeaders headers,
                                                           HttpStatusCode statusCode, WebRequest request) {

@@ -20,6 +20,8 @@ import java.util.UUID;
 
 /**
  * Sem setters: o status só muda pelos métodos de transição, que validam as regras de {@link ActivationStatus}.
+ *
+ * @since 2026-10-29
  */
 @Entity
 @Table(name = "activation_request")
@@ -70,6 +72,17 @@ public class ActivationRequest {
     @Getter(AccessLevel.NONE)
     private Long version;
 
+    /**
+     * Cria uma solicitação PENDING, pronta para ser enviada ao provedor.
+     *
+     * @param clientId      sistema consumidor (dono da solicitação)
+     * @param externalId    identificador no sistema de origem
+     * @param customerId    cliente
+     * @param productCode   produto
+     * @param correlationId identificador de correlação da requisição de criação
+     * @param now           instante da criação
+     * @return nova solicitação
+     */
     public static ActivationRequest create(String clientId, String externalId, String customerId,
                                            String productCode, String correlationId, Instant now) {
         ActivationRequest request = new ActivationRequest();
@@ -87,32 +100,72 @@ public class ActivationRequest {
         return request;
     }
 
+    /**
+     * Indica se a solicitação pode ser enviada ao provedor agora.
+     *
+     * @param now instante atual
+     * @return {@code true} se está PENDING e a próxima tentativa já venceu
+     */
     public boolean isReadyForProcessing(Instant now) {
         return status == ActivationStatus.PENDING && (nextAttemptAt == null || !nextAttemptAt.isAfter(now));
     }
 
+    /**
+     * PENDING -> PROCESSING, contando uma nova tentativa.
+     *
+     * @param now instante da mudança
+     * @throws InvalidStatusTransitionException se não estiver PENDING
+     */
     public void startProcessing(Instant now) {
         transitionTo(ActivationStatus.PROCESSING, now);
         attempts++;
         nextAttemptAt = null;
     }
 
+    /**
+     * PROCESSING -> COMPLETED.
+     *
+     * @param now instante da mudança
+     * @throws InvalidStatusTransitionException se não estiver PROCESSING
+     */
     public void complete(Instant now) {
         transitionTo(ActivationStatus.COMPLETED, now);
         lastError = null;
     }
 
+    /**
+     * PROCESSING -> FAILED (estado final).
+     *
+     * @param reason motivo, guardado em {@code lastError}
+     * @param now    instante da mudança
+     * @throws InvalidStatusTransitionException se não estiver PROCESSING
+     */
     public void fail(String reason, Instant now) {
         transitionTo(ActivationStatus.FAILED, now);
         lastError = truncate(reason);
     }
 
+    /**
+     * PROCESSING -> PENDING, agendando a próxima tentativa.
+     *
+     * @param nextAttemptAt quando a solicitação volta a ser processada
+     * @param reason        motivo da falha temporária
+     * @param now           instante da mudança
+     * @throws InvalidStatusTransitionException se não estiver PROCESSING
+     */
     public void scheduleRetry(Instant nextAttemptAt, String reason, Instant now) {
         transitionTo(ActivationStatus.PENDING, now);
         this.nextAttemptAt = Objects.requireNonNull(nextAttemptAt);
         lastError = truncate(reason);
     }
 
+    /**
+     * Compara o conteúdo de uma nova requisição com o desta solicitação (detecção de duplicidade).
+     *
+     * @param customerId  cliente da nova requisição
+     * @param productCode produto da nova requisição
+     * @return {@code true} se a nova requisição é uma repetição desta solicitação
+     */
     public boolean hasSameContentAs(String customerId, String productCode) {
         return this.customerId.equals(customerId) && this.productCode.equals(productCode);
     }

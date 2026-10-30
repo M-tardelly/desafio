@@ -25,6 +25,12 @@ import static com.example.activation.repository.ActivationRequestSpecifications.
 import static com.example.activation.repository.ActivationRequestSpecifications.hasCustomer;
 import static com.example.activation.repository.ActivationRequestSpecifications.hasStatus;
 
+/**
+ * Criação idempotente de solicitações (protegida pela constraint única de {@code client_id + external_id})
+ * e consultas sempre filtradas pelo sistema consumidor.
+ *
+ * @since 2026-10-29
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

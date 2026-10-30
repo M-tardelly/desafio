@@ -6,6 +6,11 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Clock;
 import java.time.Duration;
 
+/**
+ * Relógio único da aplicação, injetado onde há regra dependente de tempo (permite testes determinísticos).
+ *
+ * @since 2026-10-29
+ */
 @Configuration(proxyBeanMethods = false)
 public class ClockConfig {
 

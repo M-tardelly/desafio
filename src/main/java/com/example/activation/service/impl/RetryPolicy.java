@@ -12,6 +12,8 @@ import java.time.Instant;
 
 /**
  * Decide o que fazer após uma falha temporária: nova tentativa com backoff ou, ao atingir o limite, FAILED.
+ *
+ * @since 2026-10-29
  */
 @Component
 @RequiredArgsConstructor

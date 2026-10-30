@@ -46,6 +46,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Fluxo completo com banco (H2), segurança e provedor simulado (WireMock): criação, processamento,
+ * novas tentativas, duplicidade, isolamento entre sistemas e listagem.
+ *
+ * @since 2026-10-29
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

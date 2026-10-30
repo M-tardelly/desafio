@@ -18,6 +18,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Valida as regras aplicadas pelo {@link JwtDecoder} da aplicação (o mesmo usado em produção),
  * sem precisar de servidor de autorização: a assinatura é a única etapa não exercitada aqui.
+ *
+ * @since 2026-10-29
  */
 @SpringBootTest
 @ActiveProfiles("test")

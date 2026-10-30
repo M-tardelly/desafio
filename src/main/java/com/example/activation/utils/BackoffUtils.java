@@ -8,6 +8,8 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Backoff exponencial com jitter ("equal jitter": metade fixa, metade aleatória) para evitar que
  * várias solicitações que falharam juntas voltem ao provedor no mesmo instante.
+ *
+ * @since 2026-10-29
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class BackoffUtils {
@@ -15,7 +17,13 @@ public final class BackoffUtils {
     private static final int MAX_EXPONENT = 20;
 
     /**
-     * @param retryAfter tempo pedido pelo provedor; quando presente, tem prioridade sobre o cálculo.
+     * Calcula a espera antes da próxima tentativa.
+     *
+     * @param attemptsSoFar  tentativas já feitas (a espera dobra a cada uma)
+     * @param initialBackoff espera base
+     * @param maxBackoff     espera máxima
+     * @param retryAfter     tempo pedido pelo provedor; quando presente, tem prioridade sobre o cálculo
+     * @return espera até a próxima tentativa
      */
     public static Duration nextDelay(int attemptsSoFar, Duration initialBackoff, Duration maxBackoff,
                                      Duration retryAfter) {

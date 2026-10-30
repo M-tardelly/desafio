@@ -13,12 +13,18 @@ import java.time.format.DateTimeParseException;
 /**
  * Interpreta o header HTTP {@code Retry-After}, que pode vir em segundos ({@code 120}) ou como data
  * ({@code Wed, 21 Oct 2026 07:28:00 GMT}).
+ *
+ * @since 2026-10-29
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class RetryAfterUtils {
 
     /**
-     * @return o tempo de espera, {@link Duration#ZERO} para datas passadas, ou {@code null} se ausente/inválido.
+     * Converte o valor do header em tempo de espera.
+     *
+     * @param headerValue valor do header, possivelmente {@code null}
+     * @param now         instante atual, usado quando o valor é uma data
+     * @return o tempo de espera, {@link Duration#ZERO} para datas passadas, ou {@code null} se ausente/inválido
      */
     public static Duration parse(String headerValue, Instant now) {
         if (!StringUtils.hasText(headerValue)) {

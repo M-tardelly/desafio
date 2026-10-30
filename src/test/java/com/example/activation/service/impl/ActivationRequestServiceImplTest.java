@@ -25,6 +25,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Regras de duplicidade do service, incluindo a corrida resolvida pela constraint única.
+ *
+ * @since 2026-10-29
+ */
 @ExtendWith(MockitoExtension.class)
 class ActivationRequestServiceImplTest {
 

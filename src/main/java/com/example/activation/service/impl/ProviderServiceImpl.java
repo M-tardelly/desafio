@@ -29,6 +29,8 @@ import java.time.Clock;
 
 /**
  * Cliente HTTP do provedor ({@code POST /provider/v1/activate}).
+ *
+ * @since 2026-10-29
  */
 @Slf4j
 @Service

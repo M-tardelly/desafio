@@ -10,6 +10,11 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Interpretação do header HTTP Retry-After.
+ *
+ * @since 2026-10-29
+ */
 class RetryAfterUtilsTest {
 
     private static final Instant NOW = Instant.parse("2026-10-21T07:27:00Z");

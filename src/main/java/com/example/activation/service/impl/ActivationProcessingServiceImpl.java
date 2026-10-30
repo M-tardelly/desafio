@@ -42,6 +42,8 @@ import java.util.UUID;
  * <p>
  * As transações são programáticas ({@link TransactionTemplate}) porque {@code @Transactional} não se aplica
  * a chamadas entre métodos da mesma classe.
+ *
+ * @since 2026-10-29
  */
 @Slf4j
 @Service

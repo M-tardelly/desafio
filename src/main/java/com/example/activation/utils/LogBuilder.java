@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
  * }</pre>
  * Os campos também são enviados como key-value pairs do SLF4J, que aparecem como atributos próprios no
  * log estruturado em JSON. O {@code correlationId} já vem do MDC e não precisa ser informado.
+ *
+ * @since 2026-10-29
  */
 public final class LogBuilder {
 
@@ -34,22 +36,57 @@ public final class LogBuilder {
         this.message = message;
     }
 
+    /**
+     * Inicia um log de nível DEBUG.
+     *
+     * @param logger  logger da classe
+     * @param message mensagem curta, sem valores variáveis
+     * @return builder de log DEBUG
+     */
     public static LogBuilder debug(Logger logger, String message) {
         return new LogBuilder(logger, Level.DEBUG, message);
     }
 
+    /**
+     * Inicia um log de nível INFO.
+     *
+     * @param logger  logger da classe
+     * @param message mensagem curta, sem valores variáveis
+     * @return builder de log INFO
+     */
     public static LogBuilder info(Logger logger, String message) {
         return new LogBuilder(logger, Level.INFO, message);
     }
 
+    /**
+     * Inicia um log de nível WARN.
+     *
+     * @param logger  logger da classe
+     * @param message mensagem curta, sem valores variáveis
+     * @return builder de log WARN
+     */
     public static LogBuilder warn(Logger logger, String message) {
         return new LogBuilder(logger, Level.WARN, message);
     }
 
+    /**
+     * Inicia um log de nível ERROR.
+     *
+     * @param logger  logger da classe
+     * @param message mensagem curta, sem valores variáveis
+     * @return builder de log ERROR
+     */
     public static LogBuilder error(Logger logger, String message) {
         return new LogBuilder(logger, Level.ERROR, message);
     }
 
+    /**
+     * Adiciona um campo ao log; os campos aparecem na ordem em que foram adicionados.
+     *
+     * @param key   nome do campo (camelCase, ex.: {@code requestId})
+     * @param value valor; {@code null} é registrado como "null"
+     * @return este builder
+     */
     public LogBuilder with(String key, Object value) {
         fields.put(key, value);
         return this;
@@ -57,12 +94,18 @@ public final class LogBuilder {
 
     /**
      * Inclui a exceção com stack trace no log.
+     *
+     * @param cause exceção a registrar
+     * @return este builder
      */
     public LogBuilder exception(Throwable cause) {
         this.cause = cause;
         return this;
     }
 
+    /**
+     * Emite o log, se o nível estiver habilitado.
+     */
     public void log() {
         if (!logger.isEnabledForLevel(level)) {
             return;

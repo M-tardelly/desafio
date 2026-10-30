@@ -13,6 +13,11 @@ import java.util.Set;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+/**
+ * Regras de arquitetura verificadas no build: dependências entre camadas e uso do {@code LogBuilder}.
+ *
+ * @since 2026-10-29
+ */
 @AnalyzeClasses(packages = "com.example.activation", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
 

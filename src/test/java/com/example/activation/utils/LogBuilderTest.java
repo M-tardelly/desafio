@@ -14,6 +14,11 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
+/**
+ * Formato padronizado dos logs gerados pelo {@code LogBuilder}.
+ *
+ * @since 2026-10-29
+ */
 class LogBuilderTest {
 
     private final Logger logger = (Logger) LoggerFactory.getLogger(LogBuilderTest.class);

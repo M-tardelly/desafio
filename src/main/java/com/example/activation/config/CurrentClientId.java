@@ -12,6 +12,8 @@ import java.lang.annotation.Target;
  * Injeta o identificador do sistema consumidor autenticado: o claim {@code sub} do JWT
  * (no client credentials, o client_id). A presença do claim é garantida pela validação do token
  * em {@link SecurityConfig}.
+ *
+ * @since 2026-10-29
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)

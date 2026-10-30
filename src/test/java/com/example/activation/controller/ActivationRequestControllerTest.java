@@ -38,6 +38,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Contrato HTTP do controller (fatia web): status, Problem Details, validação, 401 e 403.
+ *
+ * @since 2026-10-29
+ */
 @WebMvcTest(ActivationRequestController.class)
 @Import({SecurityConfig.class, ActivationRequestMapperImpl.class})
 class ActivationRequestControllerTest {

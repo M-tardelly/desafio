@@ -7,6 +7,11 @@ import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Backoff exponencial com jitter, teto e prioridade do Retry-After.
+ *
+ * @since 2026-10-29
+ */
 class BackoffUtilsTest {
 
     private static final Duration INITIAL = Duration.ofSeconds(2);

@@ -16,6 +16,8 @@ import java.util.regex.Pattern;
 
 /**
  * Executa antes do Spring Security para que respostas 401/403 também tenham o identificador.
+ *
+ * @since 2026-10-29
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
