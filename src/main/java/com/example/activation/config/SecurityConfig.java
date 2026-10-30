@@ -7,7 +7,12 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.util.StringUtils;
 
 /**
  * Resource Server OAuth 2.0: valida JWTs emitidos pelo servidor de autorização (assinatura via JWKS,
@@ -33,5 +38,14 @@ public class SecurityConfig {
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
                 .build();
+    }
+
+    /**
+     * O {@code sub} identifica o sistema consumidor (ver {@link CurrentClientId}); token sem ele é inválido (401).
+     * O Spring Boot adiciona este validador aos que já verifica (assinatura, emissor, audiência, expiração).
+     */
+    @Bean
+    OAuth2TokenValidator<Jwt> subjectRequiredValidator() {
+        return new JwtClaimValidator<String>(JwtClaimNames.SUB, StringUtils::hasText);
     }
 }

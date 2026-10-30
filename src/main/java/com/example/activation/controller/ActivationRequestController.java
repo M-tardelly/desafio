@@ -1,5 +1,6 @@
 package com.example.activation.controller;
 
+import com.example.activation.config.CurrentClientId;
 import com.example.activation.dto.command.CreateActivationCommand;
 import com.example.activation.dto.command.CreateActivationResult;
 import com.example.activation.dto.request.CreateActivationRequest;
@@ -14,10 +15,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +27,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.UUID;
 
+/**
+ * Todas as operações recebem o sistema consumidor autenticado ({@link CurrentClientId}) e só enxergam
+ * as solicitações dele, para que um sistema não acesse solicitações de outro.
+ */
 @RestController
 @RequestMapping("/api/v1/requests")
 @RequiredArgsConstructor
@@ -44,8 +45,8 @@ public class ActivationRequestController {
      */
     @PostMapping
     public ResponseEntity<ActivationRequestResponse> create(@Valid @RequestBody CreateActivationRequest body,
-                                                            @AuthenticationPrincipal Jwt jwt) {
-        CreateActivationCommand command = mapper.toCommand(body, clientId(jwt), CorrelationIdUtils.current());
+                                                            @CurrentClientId String clientId) {
+        CreateActivationCommand command = mapper.toCommand(body, clientId, CorrelationIdUtils.current());
         CreateActivationResult result = service.create(command);
         ActivationRequestResponse response = mapper.toResponse(result.request());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -59,8 +60,8 @@ public class ActivationRequestController {
     }
 
     @GetMapping("/{id}")
-    public ActivationRequestResponse get(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
-        return mapper.toResponse(service.findForClient(id, clientId(jwt)));
+    public ActivationRequestResponse get(@PathVariable UUID id, @CurrentClientId String clientId) {
+        return mapper.toResponse(service.findForClient(id, clientId));
     }
 
     @GetMapping
@@ -69,18 +70,7 @@ public class ActivationRequestController {
             @RequestParam(required = false) String customerId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
-            @AuthenticationPrincipal Jwt jwt) {
-        return mapper.toPageResponse(service.list(clientId(jwt), status, customerId, page, size));
-    }
-
-    /**
-     * O sistema consumidor é identificado pelo "sub" do token (no client credentials, o client_id).
-     * Toda leitura é filtrada por ele para que um sistema não acesse solicitações de outro.
-     */
-    private static String clientId(Jwt jwt) {
-        if (jwt == null || !StringUtils.hasText(jwt.getSubject())) {
-            throw new AccessDeniedException("Token sem identificação do sistema consumidor");
-        }
-        return jwt.getSubject();
+            @CurrentClientId String clientId) {
+        return mapper.toPageResponse(service.list(clientId, status, customerId, page, size));
     }
 }
