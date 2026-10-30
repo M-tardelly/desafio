@@ -1,13 +1,13 @@
 package com.example.activation.controller;
 
-import com.example.activation.service.ActivationRequestService;
-import com.example.activation.dto.CreateActivationCommand;
-import com.example.activation.dto.CreationResult;
+import com.example.activation.config.SecurityConfig;
+import com.example.activation.dto.command.CreateActivationCommand;
+import com.example.activation.dto.command.CreateActivationResult;
 import com.example.activation.exception.DuplicateRequestConflictException;
 import com.example.activation.exception.RequestNotFoundException;
-import com.example.activation.config.SecurityConfig;
 import com.example.activation.mapper.ActivationRequestMapperImpl;
 import com.example.activation.model.ActivationRequest;
+import com.example.activation.service.ActivationRequestService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -67,7 +67,7 @@ class ActivationRequestControllerTest {
     @Test
     void createsRequestAndReturnsLocation() throws Exception {
         ActivationRequest request = sampleRequest();
-        when(service.create(any())).thenReturn(new CreationResult(request, true));
+        when(service.create(any())).thenReturn(new CreateActivationResult(request, true));
 
         mockMvc.perform(post("/api/v1/requests").with(client("activation:write"))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
@@ -84,7 +84,7 @@ class ActivationRequestControllerTest {
     @Test
     void usesTokenSubjectAsClientAndPropagatesCorrelationId() throws Exception {
         CreateActivationCommand expected = new CreateActivationCommand("system-a", "EXT-12345", "CUST-10001", "INTERNET-500", "abc-123");
-        when(service.create(eq(expected))).thenReturn(new CreationResult(sampleRequest(), true));
+        when(service.create(eq(expected))).thenReturn(new CreateActivationResult(sampleRequest(), true));
 
         mockMvc.perform(post("/api/v1/requests").with(client("activation:write"))
                         .header("X-Correlation-Id", "abc-123")
@@ -95,7 +95,7 @@ class ActivationRequestControllerTest {
 
     @Test
     void returns200WithExistingRequestOnRetry() throws Exception {
-        when(service.create(any())).thenReturn(new CreationResult(sampleRequest(), false));
+        when(service.create(any())).thenReturn(new CreateActivationResult(sampleRequest(), false));
 
         mockMvc.perform(post("/api/v1/requests").with(client("activation:write"))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))

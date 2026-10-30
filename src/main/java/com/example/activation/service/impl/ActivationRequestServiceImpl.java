@@ -1,7 +1,7 @@
 package com.example.activation.service.impl;
 
-import com.example.activation.dto.CreateActivationCommand;
-import com.example.activation.dto.CreationResult;
+import com.example.activation.dto.command.CreateActivationCommand;
+import com.example.activation.dto.command.CreateActivationResult;
 import com.example.activation.exception.DuplicateRequestConflictException;
 import com.example.activation.exception.RequestNotFoundException;
 import com.example.activation.model.ActivationRequest;
@@ -37,7 +37,7 @@ public class ActivationRequestServiceImpl implements ActivationRequestService {
      * aconteça em uma nova transação (no PostgreSQL uma transação com erro fica inutilizável).
      */
     @Override
-    public CreationResult create(CreateActivationCommand command) {
+    public CreateActivationResult create(CreateActivationCommand command) {
         Optional<ActivationRequest> existing =
                 repository.findByClientIdAndExternalId(command.clientId(), command.externalId());
         if (existing.isPresent()) {
@@ -53,7 +53,7 @@ public class ActivationRequestServiceImpl implements ActivationRequestService {
                     .with("externalId", saved.getExternalId())
                     .with("clientId", saved.getClientId())
                     .log();
-            return CreationResult.created(saved);
+            return CreateActivationResult.created(saved);
         } catch (DataIntegrityViolationException e) {
             ActivationRequest winner = repository.findByClientIdAndExternalId(command.clientId(), command.externalId())
                     .orElseThrow(() -> e);
@@ -87,10 +87,10 @@ public class ActivationRequestServiceImpl implements ActivationRequestService {
         return repository.findAll(filter, pageable);
     }
 
-    private CreationResult replay(ActivationRequest existing, CreateActivationCommand command) {
+    private CreateActivationResult replay(ActivationRequest existing, CreateActivationCommand command) {
         if (!existing.hasSameContentAs(command.customerId(), command.productCode())) {
             throw new DuplicateRequestConflictException(command.externalId(), existing.getId());
         }
-        return CreationResult.existing(existing);
+        return CreateActivationResult.existing(existing);
     }
 }

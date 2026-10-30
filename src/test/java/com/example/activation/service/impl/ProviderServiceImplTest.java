@@ -2,7 +2,7 @@ package com.example.activation.service.impl;
 
 import com.example.activation.config.ProviderClientConfig;
 import com.example.activation.config.ProviderProperties;
-import com.example.activation.dto.ProviderResult;
+import com.example.activation.dto.provider.ProviderActivationResult;
 import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationRequest;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
@@ -56,9 +56,9 @@ class ProviderServiceImplTest {
     void sendsIdempotencyKeyCorrelationIdAndCredentials() {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH).willReturn(ok()));
 
-        ProviderResult result = service.activate(request);
+        ProviderActivationResult result = service.activate(request);
 
-        assertThat(result).isInstanceOf(ProviderResult.Activated.class);
+        assertThat(result).isInstanceOf(ProviderActivationResult.Activated.class);
         provider.verify(postRequestedFor(urlEqualTo(ProviderServiceImpl.ACTIVATE_PATH))
                 .withHeader("Idempotency-Key", equalTo(request.getId().toString()))
                 .withHeader("X-Correlation-Id", equalTo("corr-123"))
@@ -73,9 +73,9 @@ class ProviderServiceImplTest {
     void clientErrorsAreFinalRejections(int status) {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH).willReturn(aResponse().withStatus(status)));
 
-        ProviderResult result = service.activate(request);
+        ProviderActivationResult result = service.activate(request);
 
-        assertThat(result).isInstanceOfSatisfying(ProviderResult.Rejected.class,
+        assertThat(result).isInstanceOfSatisfying(ProviderActivationResult.Rejected.class,
                 rejected -> assertThat(rejected.reason()).contains(String.valueOf(status)));
     }
 
@@ -84,9 +84,9 @@ class ProviderServiceImplTest {
     void serverErrorsAndThrottlingAreRetryable(int status) {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH).willReturn(aResponse().withStatus(status)));
 
-        ProviderResult result = service.activate(request);
+        ProviderActivationResult result = service.activate(request);
 
-        assertThat(result).isInstanceOfSatisfying(ProviderResult.TemporaryFailure.class,
+        assertThat(result).isInstanceOfSatisfying(ProviderActivationResult.TemporaryFailure.class,
                 failure -> assertThat(failure.retryAfter()).isNull());
     }
 
@@ -95,9 +95,9 @@ class ProviderServiceImplTest {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH)
                 .willReturn(aResponse().withStatus(503).withHeader("Retry-After", "30")));
 
-        ProviderResult result = service.activate(request);
+        ProviderActivationResult result = service.activate(request);
 
-        assertThat(result).isInstanceOfSatisfying(ProviderResult.TemporaryFailure.class,
+        assertThat(result).isInstanceOfSatisfying(ProviderActivationResult.TemporaryFailure.class,
                 failure -> assertThat(failure.retryAfter()).isEqualTo(Duration.ofSeconds(30)));
     }
 
@@ -105,9 +105,9 @@ class ProviderServiceImplTest {
     void timeoutIsRetryableBecauseOutcomeIsUnknown() {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH).willReturn(ok().withFixedDelay(1_500)));
 
-        ProviderResult result = service.activate(request);
+        ProviderActivationResult result = service.activate(request);
 
-        assertThat(result).isInstanceOfSatisfying(ProviderResult.TemporaryFailure.class,
+        assertThat(result).isInstanceOfSatisfying(ProviderActivationResult.TemporaryFailure.class,
                 failure -> assertThat(failure.reason()).contains("Timeout"));
     }
 
@@ -115,8 +115,8 @@ class ProviderServiceImplTest {
     void connectionFailureIsRetryable() {
         ProviderServiceImpl unreachable = newService("http://localhost:1", Duration.ofMillis(300), null);
 
-        ProviderResult result = unreachable.activate(request);
+        ProviderActivationResult result = unreachable.activate(request);
 
-        assertThat(result).isInstanceOf(ProviderResult.TemporaryFailure.class);
+        assertThat(result).isInstanceOf(ProviderActivationResult.TemporaryFailure.class);
     }
 }

@@ -1,11 +1,11 @@
 package com.example.activation.service.impl;
 
-import com.example.activation.dto.CreateActivationCommand;
-import com.example.activation.dto.CreationResult;
+import com.example.activation.dto.command.CreateActivationCommand;
+import com.example.activation.dto.command.CreateActivationResult;
 import com.example.activation.exception.DuplicateRequestConflictException;
 import com.example.activation.model.ActivationRequest;
-import com.example.activation.repository.ActivationRequestRepository;
 import com.example.activation.model.ActivationStatus;
+import com.example.activation.repository.ActivationRequestRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,7 +48,7 @@ class ActivationRequestServiceImplTest {
         when(repository.findByClientIdAndExternalId("system-a", "EXT-1")).thenReturn(Optional.empty());
         when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CreationResult result = service.create(command);
+        CreateActivationResult result = service.create(command);
 
         assertThat(result.created()).isTrue();
         assertThat(result.request().getStatus()).isEqualTo(ActivationStatus.PENDING);
@@ -61,7 +61,7 @@ class ActivationRequestServiceImplTest {
         ActivationRequest existing = existingRequest("CUST-1", "INTERNET-500");
         when(repository.findByClientIdAndExternalId("system-a", "EXT-1")).thenReturn(Optional.of(existing));
 
-        CreationResult result = service.create(command);
+        CreateActivationResult result = service.create(command);
 
         assertThat(result.created()).isFalse();
         assertThat(result.request()).isSameAs(existing);
@@ -86,7 +86,7 @@ class ActivationRequestServiceImplTest {
                 .thenReturn(Optional.of(winner));
         when(repository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("uk violation"));
 
-        CreationResult result = service.create(command);
+        CreateActivationResult result = service.create(command);
 
         assertThat(result.created()).isFalse();
         assertThat(result.request()).isSameAs(winner);

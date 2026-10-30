@@ -1,10 +1,10 @@
 package com.example.activation.controller;
 
-import com.example.activation.dto.ActivationRequestResponse;
-import com.example.activation.dto.CreateActivationCommand;
-import com.example.activation.dto.CreateActivationRequest;
-import com.example.activation.dto.CreationResult;
-import com.example.activation.dto.PageResponse;
+import com.example.activation.dto.command.CreateActivationCommand;
+import com.example.activation.dto.command.CreateActivationResult;
+import com.example.activation.dto.request.CreateActivationRequest;
+import com.example.activation.dto.response.ActivationRequestResponse;
+import com.example.activation.dto.response.PageResponse;
 import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationStatus;
 import com.example.activation.service.ActivationRequestService;
@@ -46,7 +46,7 @@ public class ActivationRequestController {
     public ResponseEntity<ActivationRequestResponse> create(@Valid @RequestBody CreateActivationRequest body,
                                                             @AuthenticationPrincipal Jwt jwt) {
         CreateActivationCommand command = mapper.toCommand(body, clientId(jwt), CorrelationIdUtils.current());
-        CreationResult result = service.create(command);
+        CreateActivationResult result = service.create(command);
         ActivationRequestResponse response = mapper.toResponse(result.request());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")

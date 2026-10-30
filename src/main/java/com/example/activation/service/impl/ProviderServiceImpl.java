@@ -1,9 +1,9 @@
 package com.example.activation.service.impl;
 
-import com.example.activation.dto.ProviderResult;
-import com.example.activation.dto.ProviderResult.Activated;
-import com.example.activation.dto.ProviderResult.Rejected;
-import com.example.activation.dto.ProviderResult.TemporaryFailure;
+import com.example.activation.dto.provider.ProviderActivationResult.Activated;
+import com.example.activation.dto.provider.ProviderActivationResult.Rejected;
+import com.example.activation.dto.provider.ProviderActivationResult.TemporaryFailure;
+import com.example.activation.dto.provider.ProviderActivationResult;
 import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationRequest;
 import com.example.activation.service.ProviderService;
@@ -52,14 +52,14 @@ public class ProviderServiceImpl implements ProviderService {
     private final MeterRegistry meterRegistry;
 
     @Override
-    public ProviderResult activate(ActivationRequest request) {
+    public ProviderActivationResult activate(ActivationRequest request) {
         Timer.Sample sample = Timer.start(meterRegistry);
-        ProviderResult result = send(request);
+        ProviderActivationResult result = send(request);
         sample.stop(meterRegistry.timer("provider.activation", "outcome", outcomeTag(result)));
         return result;
     }
 
-    private ProviderResult send(ActivationRequest request) {
+    private ProviderActivationResult send(ActivationRequest request) {
         try {
             return providerRestClient.post()
                     .uri(ACTIVATE_PATH)
@@ -88,7 +88,7 @@ public class ProviderServiceImpl implements ProviderService {
         }
     }
 
-    private ProviderResult toResult(HttpStatusCode status, HttpHeaders headers) {
+    private ProviderActivationResult toResult(HttpStatusCode status, HttpHeaders headers) {
         if (status.is2xxSuccessful()) {
             return new Activated();
         }
@@ -132,7 +132,7 @@ public class ProviderServiceImpl implements ProviderService {
         }
     }
 
-    private static String outcomeTag(ProviderResult result) {
+    private static String outcomeTag(ProviderActivationResult result) {
         return switch (result) {
             case Activated activated -> "activated";
             case Rejected rejected -> "rejected";

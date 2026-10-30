@@ -1,8 +1,8 @@
 package com.example.activation;
 
+import com.example.activation.dto.command.CreateActivationCommand;
+import com.example.activation.dto.command.CreateActivationResult;
 import com.example.activation.service.ActivationRequestService;
-import com.example.activation.dto.CreateActivationCommand;
-import com.example.activation.dto.CreationResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -37,25 +37,25 @@ abstract class ConcurrentCreationContract {
         String externalId = "EXT-" + UUID.randomUUID();
         CreateActivationCommand command = new CreateActivationCommand("concurrency-client", externalId, "CUST-1", "INTERNET-500", "corr");
         CountDownLatch startSignal = new CountDownLatch(1);
-        Callable<CreationResult> createAfterSignal = () -> {
+        Callable<CreateActivationResult> createAfterSignal = () -> {
             startSignal.await();
             return service.create(command);
         };
 
-        List<CreationResult> results = new ArrayList<>();
+        List<CreateActivationResult> results = new ArrayList<>();
         try (ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS)) {
-            List<Future<CreationResult>> futures = new ArrayList<>();
+            List<Future<CreateActivationResult>> futures = new ArrayList<>();
             for (int i = 0; i < CONCURRENT_REQUESTS; i++) {
                 futures.add(executor.submit(createAfterSignal));
             }
             startSignal.countDown();
-            for (Future<CreationResult> future : futures) {
+            for (Future<CreateActivationResult> future : futures) {
                 results.add(future.get(30, TimeUnit.SECONDS));
             }
         }
 
-        assertThat(results).filteredOn(CreationResult::created).hasSize(1);
-        UUID winnerId = results.stream().filter(CreationResult::created).findFirst().orElseThrow().request().getId();
+        assertThat(results).filteredOn(CreateActivationResult::created).hasSize(1);
+        UUID winnerId = results.stream().filter(CreateActivationResult::created).findFirst().orElseThrow().request().getId();
         assertThat(results).allSatisfy(result -> assertThat(result.request().getId()).isEqualTo(winnerId));
         assertThat(countRows(externalId)).isEqualTo(1);
     }

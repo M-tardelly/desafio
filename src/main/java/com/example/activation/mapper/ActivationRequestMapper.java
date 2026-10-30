@@ -1,10 +1,10 @@
 package com.example.activation.mapper;
 
-import com.example.activation.dto.ActivationRequestResponse;
-import com.example.activation.dto.CreateActivationCommand;
-import com.example.activation.dto.CreateActivationRequest;
-import com.example.activation.dto.PageResponse;
-import com.example.activation.dto.ProviderActivationRequest;
+import com.example.activation.dto.command.CreateActivationCommand;
+import com.example.activation.dto.provider.ProviderActivationRequest;
+import com.example.activation.dto.request.CreateActivationRequest;
+import com.example.activation.dto.response.ActivationRequestResponse;
+import com.example.activation.dto.response.PageResponse;
 import com.example.activation.model.ActivationRequest;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

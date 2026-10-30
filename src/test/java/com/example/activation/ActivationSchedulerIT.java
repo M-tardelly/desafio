@@ -1,10 +1,10 @@
 package com.example.activation;
 
-import com.example.activation.service.ActivationRequestService;
-import com.example.activation.dto.CreateActivationCommand;
-import com.example.activation.dto.CreationResult;
-import com.example.activation.repository.ActivationRequestRepository;
+import com.example.activation.dto.command.CreateActivationCommand;
+import com.example.activation.dto.command.CreateActivationResult;
 import com.example.activation.model.ActivationStatus;
+import com.example.activation.repository.ActivationRequestRepository;
+import com.example.activation.service.ActivationRequestService;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -51,7 +51,7 @@ class ActivationSchedulerIT {
     void processesNewRequestsInBackground() {
         provider.stubFor(post("/provider/v1/activate").willReturn(ok()));
 
-        CreationResult created = service.create(
+        CreateActivationResult created = service.create(
                 new CreateActivationCommand("scheduler-client", "EXT-SCHEDULED", "CUST-1", "INTERNET-500", "corr"));
         assertThat(created.request().getStatus()).isEqualTo(ActivationStatus.PENDING);
 

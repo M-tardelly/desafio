@@ -1,7 +1,7 @@
-package com.example.activation.dto;
+package com.example.activation.dto.command;
 
 /**
- * Dados de entrada da criação, já com o sistema consumidor identificado pelo token.
+ * Entrada da criação enviada pelo controller ao service, já com o sistema consumidor identificado pelo token.
  */
 public record CreateActivationCommand(
         String clientId,

@@ -1,7 +1,7 @@
 package com.example.activation.service.impl;
 
 import com.example.activation.config.ProcessingProperties;
-import com.example.activation.dto.ProviderResult;
+import com.example.activation.dto.provider.ProviderActivationResult;
 import com.example.activation.exception.InvalidStatusTransitionException;
 import com.example.activation.model.ActivationRequest;
 import com.example.activation.model.ActivationStatus;
@@ -104,7 +104,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
         }
         ActivationRequest request = claimed.get();
         try (MDC.MDCCloseable ignored = CorrelationIdUtils.bind(request.getCorrelationId())) {
-            ProviderResult result = callProvider(request);
+            ProviderActivationResult result = callProvider(request);
             applyResult(id, result);
         }
         return true;
@@ -128,7 +128,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
         }
     }
 
-    private ProviderResult callProvider(ActivationRequest request) {
+    private ProviderActivationResult callProvider(ActivationRequest request) {
         try {
             return providerService.activate(request);
         } catch (RuntimeException e) {
@@ -136,18 +136,18 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
                     .with("requestId", request.getId())
                     .exception(e)
                     .log();
-            return new ProviderResult.TemporaryFailure("Erro inesperado na integração com o provedor", null);
+            return new ProviderActivationResult.TemporaryFailure("Erro inesperado na integração com o provedor", null);
         }
     }
 
-    private void applyResult(UUID id, ProviderResult result) {
+    private void applyResult(UUID id, ProviderActivationResult result) {
         try {
             transactionTemplate.executeWithoutResult(tx -> {
                 ActivationRequest request = repository.findById(id).orElseThrow();
                 switch (result) {
-                    case ProviderResult.Activated activated -> request.complete(clock.instant());
-                    case ProviderResult.Rejected rejected -> request.fail(rejected.reason(), clock.instant());
-                    case ProviderResult.TemporaryFailure failure ->
+                    case ProviderActivationResult.Activated activated -> request.complete(clock.instant());
+                    case ProviderActivationResult.Rejected rejected -> request.fail(rejected.reason(), clock.instant());
+                    case ProviderActivationResult.TemporaryFailure failure ->
                             handleTemporaryFailure(request, failure.reason(), failure.retryAfter());
                 }
                 LogBuilder.info(log, "Provider result applied")

@@ -1,6 +1,6 @@
 package com.example.activation.handler;
 
-import com.example.activation.dto.FieldViolation;
+import com.example.activation.dto.response.FieldErrorResponse;
 import com.example.activation.exception.DuplicateRequestConflictException;
 import com.example.activation.exception.InvalidStatusTransitionException;
 import com.example.activation.exception.RequestNotFoundException;
@@ -74,8 +74,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers, HttpStatusCode status,
                                                                   WebRequest request) {
-        List<FieldViolation> errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> new FieldViolation(error.getField(), error.getDefaultMessage()))
+        List<FieldErrorResponse> errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> new FieldErrorResponse(error.getField(), error.getDefaultMessage()))
                 .toList();
         return handleExceptionInternal(ex, validationProblem(errors), headers, status, request);
     }
@@ -85,9 +85,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                            HttpHeaders headers,
                                                                            HttpStatusCode status,
                                                                            WebRequest request) {
-        List<FieldViolation> errors = ex.getParameterValidationResults().stream()
+        List<FieldErrorResponse> errors = ex.getParameterValidationResults().stream()
                 .flatMap(result -> result.getResolvableErrors().stream()
-                        .map(error -> new FieldViolation(result.getMethodParameter().getParameterName(),
+                        .map(error -> new FieldErrorResponse(result.getMethodParameter().getParameterName(),
                                 error.getDefaultMessage())))
                 .toList();
         return handleExceptionInternal(ex, validationProblem(errors), headers, status, request);
@@ -103,7 +103,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return super.createResponseEntity(body, headers, statusCode, request);
     }
 
-    private static ProblemDetail validationProblem(List<FieldViolation> errors) {
+    private static ProblemDetail validationProblem(List<FieldErrorResponse> errors) {
         ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "validation-error", "Dados inválidos",
                 "Um ou mais campos não passaram na validação.");
         problem.setProperty("errors", errors);
