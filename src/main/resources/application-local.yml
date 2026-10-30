@@ -1,0 +1,7 @@
+# Execução local sem PostgreSQL: banco H2 em memória (compatível com o dialeto do PostgreSQL).
+# O mock do provedor e do JWKS continua vindo do WireMock: docker compose up wiremock
+spring:
+  datasource:
+    url: jdbc:h2:mem:activation;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
