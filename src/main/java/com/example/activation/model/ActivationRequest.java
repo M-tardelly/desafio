@@ -72,7 +72,7 @@ public class ActivationRequest {
 
     public static ActivationRequest create(String clientId, String externalId, String customerId,
                                            String productCode, String correlationId, Instant now) {
-        var request = new ActivationRequest();
+        ActivationRequest request = new ActivationRequest();
         request.id = UUID.randomUUID();
         request.clientId = Objects.requireNonNull(clientId);
         request.externalId = Objects.requireNonNull(externalId);

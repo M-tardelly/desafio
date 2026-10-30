@@ -21,7 +21,7 @@ class ActivationRequestTest {
 
     @Test
     void startsPendingAndReadyForProcessing() {
-        var request = newRequest();
+        ActivationRequest request = newRequest();
 
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.PENDING);
         assertThat(request.getAttempts()).isZero();
@@ -31,8 +31,8 @@ class ActivationRequestTest {
 
     @Test
     void completesAfterProcessing() {
-        var request = newRequest();
-        var later = NOW.plusSeconds(5);
+        ActivationRequest request = newRequest();
+        Instant later = NOW.plusSeconds(5);
 
         request.startProcessing(NOW);
         request.complete(later);
@@ -44,8 +44,8 @@ class ActivationRequestTest {
 
     @Test
     void temporaryFailureGoesBackToPendingUntilNextAttempt() {
-        var request = newRequest();
-        var retryAt = NOW.plus(Duration.ofSeconds(30));
+        ActivationRequest request = newRequest();
+        Instant retryAt = NOW.plus(Duration.ofSeconds(30));
 
         request.startProcessing(NOW);
         request.scheduleRetry(retryAt, "HTTP 500", NOW);
@@ -61,7 +61,7 @@ class ActivationRequestTest {
 
     @Test
     void cannotCompleteWithoutProcessing() {
-        var request = newRequest();
+        ActivationRequest request = newRequest();
 
         assertThatThrownBy(() -> request.complete(NOW))
                 .isInstanceOf(InvalidStatusTransitionException.class)
@@ -71,7 +71,7 @@ class ActivationRequestTest {
     @ParameterizedTest
     @EnumSource(value = ActivationStatus.class, names = {"COMPLETED", "FAILED"})
     void finalStatesCannotChange(ActivationStatus finalStatus) {
-        var request = newRequest();
+        ActivationRequest request = newRequest();
         request.startProcessing(NOW);
         if (finalStatus == ActivationStatus.COMPLETED) {
             request.complete(NOW);
@@ -87,7 +87,7 @@ class ActivationRequestTest {
 
     @Test
     void comparesContentForDuplicateDetection() {
-        var request = newRequest();
+        ActivationRequest request = newRequest();
 
         assertThat(request.hasSameContentAs("CUST-1", "INTERNET-500")).isTrue();
         assertThat(request.hasSameContentAs("CUST-1", "INTERNET-1000")).isFalse();
@@ -96,7 +96,7 @@ class ActivationRequestTest {
 
     @Test
     void truncatesLongErrorMessages() {
-        var request = newRequest();
+        ActivationRequest request = newRequest();
         request.startProcessing(NOW);
 
         request.fail("x".repeat(1_000), NOW);

@@ -5,6 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -25,13 +26,13 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        var incoming = request.getHeader(CorrelationIdUtils.HEADER);
-        var correlationId = incoming != null && ACCEPTED_FORMAT.matcher(incoming).matches()
+        String incoming = request.getHeader(CorrelationIdUtils.HEADER);
+        String correlationId = incoming != null && ACCEPTED_FORMAT.matcher(incoming).matches()
                 ? incoming
                 : CorrelationIdUtils.generate();
 
         response.setHeader(CorrelationIdUtils.HEADER, correlationId);
-        try (var ignored = CorrelationIdUtils.bind(correlationId)) {
+        try (MDC.MDCCloseable ignored = CorrelationIdUtils.bind(correlationId)) {
             chain.doFilter(request, response);
         }
     }

@@ -2,6 +2,7 @@ package com.example.activation;
 
 import com.example.activation.service.ActivationRequestService;
 import com.example.activation.dto.CreateActivationCommand;
+import com.example.activation.dto.CreationResult;
 import com.example.activation.repository.ActivationRequestRepository;
 import com.example.activation.model.ActivationStatus;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
@@ -50,7 +51,7 @@ class ActivationSchedulerIT {
     void processesNewRequestsInBackground() {
         provider.stubFor(post("/provider/v1/activate").willReturn(ok()));
 
-        var created = service.create(
+        CreationResult created = service.create(
                 new CreateActivationCommand("scheduler-client", "EXT-SCHEDULED", "CUST-1", "INTERNET-500", "corr"));
         assertThat(created.request().getStatus()).isEqualTo(ActivationStatus.PENDING);
 

@@ -41,7 +41,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DuplicateRequestConflictException.class)
     ProblemDetail handleDuplicate(DuplicateRequestConflictException ex) {
-        var problem = problem(HttpStatus.CONFLICT, "duplicate-request", "Solicitação duplicada", ex.getMessage());
+        ProblemDetail problem = problem(HttpStatus.CONFLICT, "duplicate-request", "Solicitação duplicada", ex.getMessage());
         problem.setProperty("existingRequestId", ex.getExistingRequestId());
         return problem;
     }
@@ -69,7 +69,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers, HttpStatusCode status,
                                                                   WebRequest request) {
-        var errors = ex.getBindingResult().getFieldErrors().stream()
+        List<FieldViolation> errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(error -> new FieldViolation(error.getField(), error.getDefaultMessage()))
                 .toList();
         return handleExceptionInternal(ex, validationProblem(errors), headers, status, request);
@@ -80,7 +80,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                            HttpHeaders headers,
                                                                            HttpStatusCode status,
                                                                            WebRequest request) {
-        var errors = ex.getParameterValidationResults().stream()
+        List<FieldViolation> errors = ex.getParameterValidationResults().stream()
                 .flatMap(result -> result.getResolvableErrors().stream()
                         .map(error -> new FieldViolation(result.getMethodParameter().getParameterName(),
                                 error.getDefaultMessage())))
@@ -99,14 +99,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     private static ProblemDetail validationProblem(List<FieldViolation> errors) {
-        var problem = problem(HttpStatus.BAD_REQUEST, "validation-error", "Dados inválidos",
+        ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "validation-error", "Dados inválidos",
                 "Um ou mais campos não passaram na validação.");
         problem.setProperty("errors", errors);
         return problem;
     }
 
     private static ProblemDetail problem(HttpStatus status, String type, String title, String detail) {
-        var problem = ProblemDetail.forStatusAndDetail(status, detail);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setType(URI.create(PROBLEM_BASE_URI + type));
         problem.setTitle(title);
         problem.setProperty("traceId", CorrelationIdUtils.current());

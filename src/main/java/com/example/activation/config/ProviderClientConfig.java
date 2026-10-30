@@ -18,11 +18,11 @@ public class ProviderClientConfig {
 
     @Bean
     public RestClient providerRestClient(RestClient.Builder builder, ProviderProperties properties) {
-        var httpClient = HttpClient.newBuilder()
+        HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(properties.connectTimeout())
                 .build();
-        var requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(properties.readTimeout());
 
         builder.baseUrl(properties.baseUrl()).requestFactory(requestFactory);

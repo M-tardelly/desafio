@@ -1,6 +1,7 @@
 package com.example.activation.service.impl;
 
 import com.example.activation.dto.CreateActivationCommand;
+import com.example.activation.dto.CreationResult;
 import com.example.activation.exception.DuplicateRequestConflictException;
 import com.example.activation.model.ActivationRequest;
 import com.example.activation.repository.ActivationRequestRepository;
@@ -47,7 +48,7 @@ class ActivationRequestServiceImplTest {
         when(repository.findByClientIdAndExternalId("system-a", "EXT-1")).thenReturn(Optional.empty());
         when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var result = service.create(command);
+        CreationResult result = service.create(command);
 
         assertThat(result.created()).isTrue();
         assertThat(result.request().getStatus()).isEqualTo(ActivationStatus.PENDING);
@@ -57,10 +58,10 @@ class ActivationRequestServiceImplTest {
 
     @Test
     void returnsExistingRequestOnLegitimateRetry() {
-        var existing = existingRequest("CUST-1", "INTERNET-500");
+        ActivationRequest existing = existingRequest("CUST-1", "INTERNET-500");
         when(repository.findByClientIdAndExternalId("system-a", "EXT-1")).thenReturn(Optional.of(existing));
 
-        var result = service.create(command);
+        CreationResult result = service.create(command);
 
         assertThat(result.created()).isFalse();
         assertThat(result.request()).isSameAs(existing);
@@ -69,7 +70,7 @@ class ActivationRequestServiceImplTest {
 
     @Test
     void rejectsSameExternalIdWithDifferentContent() {
-        var existing = existingRequest("CUST-1", "INTERNET-1000");
+        ActivationRequest existing = existingRequest("CUST-1", "INTERNET-1000");
         when(repository.findByClientIdAndExternalId("system-a", "EXT-1")).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> service.create(command))
@@ -79,13 +80,13 @@ class ActivationRequestServiceImplTest {
 
     @Test
     void returnsWinnerWhenConcurrentInsertViolatesUniqueConstraint() {
-        var winner = existingRequest("CUST-1", "INTERNET-500");
+        ActivationRequest winner = existingRequest("CUST-1", "INTERNET-500");
         when(repository.findByClientIdAndExternalId("system-a", "EXT-1"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(winner));
         when(repository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("uk violation"));
 
-        var result = service.create(command);
+        CreationResult result = service.create(command);
 
         assertThat(result.created()).isFalse();
         assertThat(result.request()).isSameAs(winner);
@@ -93,7 +94,7 @@ class ActivationRequestServiceImplTest {
 
     @Test
     void rejectsConcurrentInsertWithDifferentContent() {
-        var winner = existingRequest("CUST-2", "INTERNET-500");
+        ActivationRequest winner = existingRequest("CUST-2", "INTERNET-500");
         when(repository.findByClientIdAndExternalId("system-a", "EXT-1"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(winner));
@@ -104,7 +105,7 @@ class ActivationRequestServiceImplTest {
 
     @Test
     void propagatesIntegrityViolationNotCausedByDuplicate() {
-        var violation = new DataIntegrityViolationException("other constraint");
+        DataIntegrityViolationException violation = new DataIntegrityViolationException("other constraint");
         when(repository.findByClientIdAndExternalId("system-a", "EXT-1")).thenReturn(Optional.empty());
         when(repository.saveAndFlush(any())).thenThrow(violation);
 

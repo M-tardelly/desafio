@@ -13,6 +13,7 @@ import com.example.activation.utils.CorrelationIdUtils;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,7 +53,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
 
     @Override
     public int processDueRequests() {
-        var dueIds = repository.findIdsReadyForProcessing(now(), Limit.of(properties.batchSize()));
+        List<UUID> dueIds = repository.findIdsReadyForProcessing(now(), Limit.of(properties.batchSize()));
         int processed = 0;
         for (UUID id : dueIds) {
             if (process(id)) {
@@ -63,8 +65,8 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
 
     @Override
     public int recoverStuckRequests() {
-        var threshold = now().minus(properties.processingLease());
-        var stuckIds = repository.findIdsStuckInProcessing(threshold, Limit.of(properties.batchSize()));
+        Instant threshold = now().minus(properties.processingLease());
+        List<UUID> stuckIds = repository.findIdsStuckInProcessing(threshold, Limit.of(properties.batchSize()));
         int recovered = 0;
         for (UUID id : stuckIds) {
             try {
@@ -79,7 +81,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
     }
 
     private boolean recover(UUID id, Instant threshold) {
-        var request = repository.findById(id).orElse(null);
+        ActivationRequest request = repository.findById(id).orElse(null);
         if (request == null || request.getStatus() != ActivationStatus.PROCESSING
                 || !request.getUpdatedAt().isBefore(threshold)) {
             return false;
@@ -90,13 +92,13 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
     }
 
     private boolean process(UUID id) {
-        var claimed = claim(id);
+        Optional<ActivationRequest> claimed = claim(id);
         if (claimed.isEmpty()) {
             return false;
         }
-        var request = claimed.get();
-        try (var ignored = CorrelationIdUtils.bind(request.getCorrelationId())) {
-            var result = callProvider(request);
+        ActivationRequest request = claimed.get();
+        try (MDC.MDCCloseable ignored = CorrelationIdUtils.bind(request.getCorrelationId())) {
+            ProviderResult result = callProvider(request);
             applyResult(id, result);
         }
         return true;
@@ -105,7 +107,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
     private Optional<ActivationRequest> claim(UUID id) {
         try {
             return Optional.ofNullable(transactionTemplate.execute(tx -> {
-                var request = repository.findById(id).orElse(null);
+                ActivationRequest request = repository.findById(id).orElse(null);
                 if (request == null || !request.isReadyForProcessing(now())) {
                     return null;
                 }
@@ -130,7 +132,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
     private void applyResult(UUID id, ProviderResult result) {
         try {
             transactionTemplate.executeWithoutResult(tx -> {
-                var request = repository.findById(id).orElseThrow();
+                ActivationRequest request = repository.findById(id).orElseThrow();
                 switch (result) {
                     case ProviderResult.Activated activated -> request.complete(now());
                     case ProviderResult.Rejected rejected -> request.fail(rejected.reason(), now());
@@ -154,7 +156,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
                     .formatted(request.getAttempts(), reason), now());
             return;
         }
-        var delay = BackoffUtils.nextDelay(request.getAttempts(), properties.initialBackoff(),
+        Duration delay = BackoffUtils.nextDelay(request.getAttempts(), properties.initialBackoff(),
                 properties.maxBackoff(), retryAfter);
         request.scheduleRetry(now().plus(delay), reason, now());
     }

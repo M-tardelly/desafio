@@ -46,8 +46,8 @@ class ProviderServiceImplTest {
     }
 
     private static ProviderServiceImpl newService(String baseUrl, Duration timeout, String apiKey) {
-        var properties = new ProviderProperties(baseUrl, timeout, timeout, apiKey);
-        var restClient = new ProviderClientConfig().providerRestClient(RestClient.builder(), properties);
+        ProviderProperties properties = new ProviderProperties(baseUrl, timeout, timeout, apiKey);
+        RestClient restClient = new ProviderClientConfig().providerRestClient(RestClient.builder(), properties);
         return new ProviderServiceImpl(restClient, Mappers.getMapper(ActivationRequestMapper.class), Clock.systemUTC(),
                 new SimpleMeterRegistry());
     }
@@ -56,7 +56,7 @@ class ProviderServiceImplTest {
     void sendsIdempotencyKeyCorrelationIdAndCredentials() {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH).willReturn(ok()));
 
-        var result = service.activate(request);
+        ProviderResult result = service.activate(request);
 
         assertThat(result).isInstanceOf(ProviderResult.Activated.class);
         provider.verify(postRequestedFor(urlEqualTo(ProviderServiceImpl.ACTIVATE_PATH))
@@ -73,7 +73,7 @@ class ProviderServiceImplTest {
     void clientErrorsAreFinalRejections(int status) {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH).willReturn(aResponse().withStatus(status)));
 
-        var result = service.activate(request);
+        ProviderResult result = service.activate(request);
 
         assertThat(result).isInstanceOfSatisfying(ProviderResult.Rejected.class,
                 rejected -> assertThat(rejected.reason()).contains(String.valueOf(status)));
@@ -84,7 +84,7 @@ class ProviderServiceImplTest {
     void serverErrorsAndThrottlingAreRetryable(int status) {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH).willReturn(aResponse().withStatus(status)));
 
-        var result = service.activate(request);
+        ProviderResult result = service.activate(request);
 
         assertThat(result).isInstanceOfSatisfying(ProviderResult.TemporaryFailure.class,
                 failure -> assertThat(failure.retryAfter()).isNull());
@@ -95,7 +95,7 @@ class ProviderServiceImplTest {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH)
                 .willReturn(aResponse().withStatus(503).withHeader("Retry-After", "30")));
 
-        var result = service.activate(request);
+        ProviderResult result = service.activate(request);
 
         assertThat(result).isInstanceOfSatisfying(ProviderResult.TemporaryFailure.class,
                 failure -> assertThat(failure.retryAfter()).isEqualTo(Duration.ofSeconds(30)));
@@ -105,7 +105,7 @@ class ProviderServiceImplTest {
     void timeoutIsRetryableBecauseOutcomeIsUnknown() {
         provider.stubFor(post(ProviderServiceImpl.ACTIVATE_PATH).willReturn(ok().withFixedDelay(1_500)));
 
-        var result = service.activate(request);
+        ProviderResult result = service.activate(request);
 
         assertThat(result).isInstanceOfSatisfying(ProviderResult.TemporaryFailure.class,
                 failure -> assertThat(failure.reason()).contains("Timeout"));
@@ -113,9 +113,9 @@ class ProviderServiceImplTest {
 
     @Test
     void connectionFailureIsRetryable() {
-        var unreachable = newService("http://localhost:1", Duration.ofMillis(300), null);
+        ProviderServiceImpl unreachable = newService("http://localhost:1", Duration.ofMillis(300), null);
 
-        var result = unreachable.activate(request);
+        ProviderResult result = unreachable.activate(request);
 
         assertThat(result).isInstanceOf(ProviderResult.TemporaryFailure.class);
     }

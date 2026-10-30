@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -38,19 +39,20 @@ public class ActivationRequestServiceImpl implements ActivationRequestService {
      */
     @Override
     public CreationResult create(CreateActivationCommand command) {
-        var existing = repository.findByClientIdAndExternalId(command.clientId(), command.externalId());
+        Optional<ActivationRequest> existing =
+                repository.findByClientIdAndExternalId(command.clientId(), command.externalId());
         if (existing.isPresent()) {
             return replay(existing.get(), command);
         }
 
         try {
-            var request = ActivationRequest.create(command.clientId(), command.externalId(), command.customerId(),
+            ActivationRequest request = ActivationRequest.create(command.clientId(), command.externalId(), command.customerId(),
                     command.productCode(), command.correlationId(), now());
-            var saved = repository.saveAndFlush(request);
+            ActivationRequest saved = repository.saveAndFlush(request);
             log.info("Activation request created id={} externalId={}", saved.getId(), saved.getExternalId());
             return CreationResult.created(saved);
         } catch (DataIntegrityViolationException e) {
-            var winner = repository.findByClientIdAndExternalId(command.clientId(), command.externalId())
+            ActivationRequest winner = repository.findByClientIdAndExternalId(command.clientId(), command.externalId())
                     .orElseThrow(() -> e);
             log.info("Concurrent duplicate detected for externalId={}, returning request {}",
                     command.externalId(), winner.getId());
@@ -75,7 +77,7 @@ public class ActivationRequestServiceImpl implements ActivationRequestService {
         if (customerId != null && !customerId.isBlank()) {
             filter = filter.and((root, query, cb) -> cb.equal(root.get("customerId"), customerId));
         }
-        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return repository.findAll(filter, pageable);
     }
 

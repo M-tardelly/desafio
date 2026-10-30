@@ -26,6 +26,7 @@ import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -51,8 +52,8 @@ public class ProviderServiceImpl implements ProviderService {
 
     @Override
     public ProviderResult activate(ActivationRequest request) {
-        var sample = Timer.start(meterRegistry);
-        var result = send(request);
+        Timer.Sample sample = Timer.start(meterRegistry);
+        ProviderResult result = send(request);
         sample.stop(meterRegistry.timer("provider.activation", "outcome", outcomeTag(result)));
         return result;
     }
@@ -99,7 +100,7 @@ public class ProviderServiceImpl implements ProviderService {
     }
 
     private static String describeIoFailure(ResourceAccessException e) {
-        var cause = NestedExceptionUtils.getMostSpecificCause(e);
+        Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
         if (cause instanceof HttpTimeoutException || cause instanceof SocketTimeoutException) {
             return "Timeout na chamada ao provedor (resultado desconhecido)";
         }
@@ -116,8 +117,8 @@ public class ProviderServiceImpl implements ProviderService {
             // Retry-After também pode ser uma data HTTP
         }
         try {
-            var retryAt = ZonedDateTime.parse(value.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
-            var delay = Duration.between(clock.instant(), retryAt);
+            Instant retryAt = ZonedDateTime.parse(value.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
+            Duration delay = Duration.between(clock.instant(), retryAt);
             return delay.isNegative() ? Duration.ZERO : delay;
         } catch (DateTimeParseException e) {
             return null;

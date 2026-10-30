@@ -1,7 +1,9 @@
 package com.example.activation.controller;
 
 import com.example.activation.dto.ActivationRequestResponse;
+import com.example.activation.dto.CreateActivationCommand;
 import com.example.activation.dto.CreateActivationRequest;
+import com.example.activation.dto.CreationResult;
 import com.example.activation.dto.PageResponse;
 import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationStatus;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.net.URI;
 import java.util.UUID;
 
 @RestController
@@ -42,10 +45,10 @@ public class ActivationRequestController {
     @PostMapping
     public ResponseEntity<ActivationRequestResponse> create(@Valid @RequestBody CreateActivationRequest body,
                                                             @AuthenticationPrincipal Jwt jwt) {
-        var command = mapper.toCommand(body, clientId(jwt), CorrelationIdUtils.current());
-        var result = service.create(command);
-        var response = mapper.toResponse(result.request());
-        var location = ServletUriComponentsBuilder.fromCurrentRequest()
+        CreateActivationCommand command = mapper.toCommand(body, clientId(jwt), CorrelationIdUtils.current());
+        CreationResult result = service.create(command);
+        ActivationRequestResponse response = mapper.toResponse(result.request());
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(response.id())
                 .toUri();

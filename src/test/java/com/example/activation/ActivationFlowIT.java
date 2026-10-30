@@ -2,6 +2,7 @@ package com.example.activation;
 
 import com.example.activation.service.ActivationProcessingService;
 import com.example.activation.repository.ActivationRequestRepository;
+import com.example.activation.model.ActivationRequest;
 import com.example.activation.model.ActivationStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,7 +83,7 @@ class ActivationFlowIT {
     void activatesRequestWhenProviderSucceeds() throws Exception {
         provider.stubFor(WireMock.post(ACTIVATE).willReturn(ok()));
 
-        var created = create(systemA(), "EXT-OK", "CUST-1", "INTERNET-500");
+        Created created = create(systemA(), "EXT-OK", "CUST-1", "INTERNET-500");
         assertThat(created.status).isEqualTo("PENDING");
 
         assertThat(processor.processDueRequests()).isEqualTo(1);
@@ -101,11 +102,11 @@ class ActivationFlowIT {
     @Test
     void failsWithoutRetryWhenProviderRejects() throws Exception {
         provider.stubFor(WireMock.post(ACTIVATE).willReturn(aResponse().withStatus(400)));
-        var created = create(systemA(), "EXT-REJECTED", "CUST-1", "UNKNOWN-PRODUCT");
+        Created created = create(systemA(), "EXT-REJECTED", "CUST-1", "UNKNOWN-PRODUCT");
 
         processor.processDueRequests();
 
-        var request = repository.findById(created.id).orElseThrow();
+        ActivationRequest request = repository.findById(created.id).orElseThrow();
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.FAILED);
         assertThat(request.getLastError()).contains("HTTP 400");
         assertThat(processor.processDueRequests()).isZero();
@@ -115,10 +116,10 @@ class ActivationFlowIT {
     @Test
     void retriesTemporaryFailureWithSameIdempotencyKeyUntilLimit() throws Exception {
         provider.stubFor(WireMock.post(ACTIVATE).willReturn(serverError()));
-        var created = create(systemA(), "EXT-DOWN", "CUST-1", "INTERNET-500");
+        Created created = create(systemA(), "EXT-DOWN", "CUST-1", "INTERNET-500");
 
         processor.processDueRequests();
-        var afterFirstAttempt = repository.findById(created.id).orElseThrow();
+        ActivationRequest afterFirstAttempt = repository.findById(created.id).orElseThrow();
         assertThat(afterFirstAttempt.getStatus()).isEqualTo(ActivationStatus.PENDING);
         assertThat(afterFirstAttempt.getAttempts()).isEqualTo(1);
         assertThat(afterFirstAttempt.getLastError()).contains("HTTP 500");
@@ -128,7 +129,7 @@ class ActivationFlowIT {
             assertThat(repository.findById(created.id).orElseThrow().getStatus()).isEqualTo(ActivationStatus.FAILED);
         });
 
-        var failed = repository.findById(created.id).orElseThrow();
+        ActivationRequest failed = repository.findById(created.id).orElseThrow();
         assertThat(failed.getAttempts()).isEqualTo(3);
         assertThat(failed.getLastError()).contains("Limite de 3 tentativas");
         provider.verify(3, postRequestedFor(urlEqualTo(ACTIVATE))
@@ -141,7 +142,7 @@ class ActivationFlowIT {
                 .willReturn(serviceUnavailable()).willSetStateTo("recovered"));
         provider.stubFor(WireMock.post(ACTIVATE).inScenario("flaky").whenScenarioStateIs("recovered")
                 .willReturn(ok()));
-        var created = create(systemA(), "EXT-FLAKY", "CUST-1", "INTERNET-500");
+        Created created = create(systemA(), "EXT-FLAKY", "CUST-1", "INTERNET-500");
 
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
             processor.processDueRequests();
@@ -154,12 +155,12 @@ class ActivationFlowIT {
     @Test
     void honorsRetryAfterHeader() throws Exception {
         provider.stubFor(WireMock.post(ACTIVATE).willReturn(aResponse().withStatus(429).withHeader("Retry-After", "30")));
-        var created = create(systemA(), "EXT-THROTTLED", "CUST-1", "INTERNET-500");
-        var before = Instant.now();
+        Created created = create(systemA(), "EXT-THROTTLED", "CUST-1", "INTERNET-500");
+        Instant before = Instant.now();
 
         processor.processDueRequests();
 
-        var request = repository.findById(created.id).orElseThrow();
+        ActivationRequest request = repository.findById(created.id).orElseThrow();
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.PENDING);
         assertThat(request.getNextAttemptAt()).isAfter(before.plusSeconds(29));
         assertThat(processor.processDueRequests()).isZero();
@@ -168,11 +169,11 @@ class ActivationFlowIT {
     @Test
     void treatsTimeoutAsRetryable() throws Exception {
         provider.stubFor(WireMock.post(ACTIVATE).willReturn(ok().withFixedDelay(1_500)));
-        var created = create(systemA(), "EXT-SLOW", "CUST-1", "INTERNET-500");
+        Created created = create(systemA(), "EXT-SLOW", "CUST-1", "INTERNET-500");
 
         processor.processDueRequests();
 
-        var request = repository.findById(created.id).orElseThrow();
+        ActivationRequest request = repository.findById(created.id).orElseThrow();
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.PENDING);
         assertThat(request.getAttempts()).isEqualTo(1);
         assertThat(request.getLastError()).contains("Timeout");
@@ -181,7 +182,7 @@ class ActivationFlowIT {
     @Test
     void reschedulesRequestsStuckInProcessing() throws Exception {
         provider.stubFor(WireMock.post(ACTIVATE).willReturn(ok()));
-        var created = create(systemA(), "EXT-STUCK", "CUST-1", "INTERNET-500");
+        Created created = create(systemA(), "EXT-STUCK", "CUST-1", "INTERNET-500");
         simulateCrashAfterClaim(created.id);
 
         await().atMost(Duration.ofSeconds(5))
@@ -194,9 +195,9 @@ class ActivationFlowIT {
 
     @Test
     void returnsExistingRequestWhenSameRequestIsRetried() throws Exception {
-        var first = create(systemA(), "EXT-RETRY", "CUST-1", "INTERNET-500");
+        Created first = create(systemA(), "EXT-RETRY", "CUST-1", "INTERNET-500");
 
-        var retry = mockMvc.perform(post("/api/v1/requests").with(systemA())
+        MvcResult retry = mockMvc.perform(post("/api/v1/requests").with(systemA())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body("EXT-RETRY", "CUST-1", "INTERNET-500")))
                 .andExpect(status().isOk())
@@ -220,12 +221,12 @@ class ActivationFlowIT {
 
     @Test
     void isolatesRequestsBetweenClients() throws Exception {
-        var fromA = create(systemA(), "EXT-SHARED", "CUST-1", "INTERNET-500");
+        Created fromA = create(systemA(), "EXT-SHARED", "CUST-1", "INTERNET-500");
 
         mockMvc.perform(get("/api/v1/requests/{id}", fromA.id).with(systemB()))
                 .andExpect(status().isNotFound());
 
-        var fromB = create(systemB(), "EXT-SHARED", "CUST-9", "TV-PREMIUM");
+        Created fromB = create(systemB(), "EXT-SHARED", "CUST-9", "TV-PREMIUM");
         assertThat(fromB.id).isNotEqualTo(fromA.id);
     }
 
@@ -264,12 +265,12 @@ class ActivationFlowIT {
 
     private Created create(RequestPostProcessor client, String externalId, String customerId, String productCode)
             throws Exception {
-        var result = mockMvc.perform(post("/api/v1/requests").with(client)
+        MvcResult result = mockMvc.perform(post("/api/v1/requests").with(client)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body(externalId, customerId, productCode)))
                 .andExpect(status().isCreated())
                 .andReturn();
-        var json = read(result);
+        JsonNode json = read(result);
         return new Created(UUID.fromString(json.get("id").asText()), json.get("status").asText(),
                 result.getResponse().getHeader("X-Correlation-Id"));
     }

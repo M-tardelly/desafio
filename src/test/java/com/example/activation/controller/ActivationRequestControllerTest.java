@@ -53,7 +53,7 @@ class ActivationRequestControllerTest {
     private ActivationRequestService service;
 
     private static JwtRequestPostProcessor client(String... scopes) {
-        var authorities = Arrays.stream(scopes)
+        SimpleGrantedAuthority[] authorities = Arrays.stream(scopes)
                 .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
                 .toArray(SimpleGrantedAuthority[]::new);
         return jwt().jwt(token -> token.subject("system-a")).authorities(authorities);
@@ -66,7 +66,7 @@ class ActivationRequestControllerTest {
 
     @Test
     void createsRequestAndReturnsLocation() throws Exception {
-        var request = sampleRequest();
+        ActivationRequest request = sampleRequest();
         when(service.create(any())).thenReturn(new CreationResult(request, true));
 
         mockMvc.perform(post("/api/v1/requests").with(client("activation:write"))
@@ -83,7 +83,7 @@ class ActivationRequestControllerTest {
 
     @Test
     void usesTokenSubjectAsClientAndPropagatesCorrelationId() throws Exception {
-        var expected = new CreateActivationCommand("system-a", "EXT-12345", "CUST-10001", "INTERNET-500", "abc-123");
+        CreateActivationCommand expected = new CreateActivationCommand("system-a", "EXT-12345", "CUST-10001", "INTERNET-500", "abc-123");
         when(service.create(eq(expected))).thenReturn(new CreationResult(sampleRequest(), true));
 
         mockMvc.perform(post("/api/v1/requests").with(client("activation:write"))
@@ -133,7 +133,7 @@ class ActivationRequestControllerTest {
 
     @Test
     void returns409WhenSameExternalIdHasDifferentContent() throws Exception {
-        var existingId = UUID.randomUUID();
+        UUID existingId = UUID.randomUUID();
         when(service.create(any())).thenThrow(new DuplicateRequestConflictException("EXT-12345", existingId));
 
         mockMvc.perform(post("/api/v1/requests").with(client("activation:write"))
@@ -145,7 +145,7 @@ class ActivationRequestControllerTest {
 
     @Test
     void returnsRequestById() throws Exception {
-        var request = sampleRequest();
+        ActivationRequest request = sampleRequest();
         when(service.findForClient(request.getId(), "system-a")).thenReturn(request);
 
         mockMvc.perform(get("/api/v1/requests/{id}", request.getId()).with(client("activation:read")))
@@ -155,7 +155,7 @@ class ActivationRequestControllerTest {
 
     @Test
     void returns404WhenRequestDoesNotExist() throws Exception {
-        var id = UUID.randomUUID();
+        UUID id = UUID.randomUUID();
         when(service.findForClient(id, "system-a")).thenThrow(new RequestNotFoundException(id));
 
         mockMvc.perform(get("/api/v1/requests/{id}", id).with(client("activation:read")))
@@ -179,7 +179,7 @@ class ActivationRequestControllerTest {
 
     @Test
     void hidesInternalDetailsOnUnexpectedErrors() throws Exception {
-        var id = UUID.randomUUID();
+        UUID id = UUID.randomUUID();
         when(service.findForClient(id, "system-a"))
                 .thenThrow(new IllegalStateException("connection pool exhausted at db-host:5432"));
 

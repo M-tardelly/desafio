@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -33,28 +34,28 @@ abstract class ConcurrentCreationContract {
 
     @Test
     void concurrentDuplicatesCreateExactlyOneRequest() throws Exception {
-        var externalId = "EXT-" + UUID.randomUUID();
-        var command = new CreateActivationCommand("concurrency-client", externalId, "CUST-1", "INTERNET-500", "corr");
-        var startSignal = new CountDownLatch(1);
+        String externalId = "EXT-" + UUID.randomUUID();
+        CreateActivationCommand command = new CreateActivationCommand("concurrency-client", externalId, "CUST-1", "INTERNET-500", "corr");
+        CountDownLatch startSignal = new CountDownLatch(1);
         Callable<CreationResult> createAfterSignal = () -> {
             startSignal.await();
             return service.create(command);
         };
 
-        var results = new ArrayList<CreationResult>();
-        try (var executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS)) {
-            var futures = new ArrayList<Future<CreationResult>>();
+        List<CreationResult> results = new ArrayList<>();
+        try (ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS)) {
+            List<Future<CreationResult>> futures = new ArrayList<>();
             for (int i = 0; i < CONCURRENT_REQUESTS; i++) {
                 futures.add(executor.submit(createAfterSignal));
             }
             startSignal.countDown();
-            for (var future : futures) {
+            for (Future<CreationResult> future : futures) {
                 results.add(future.get(30, TimeUnit.SECONDS));
             }
         }
 
         assertThat(results).filteredOn(CreationResult::created).hasSize(1);
-        var winnerId = results.stream().filter(CreationResult::created).findFirst().orElseThrow().request().getId();
+        UUID winnerId = results.stream().filter(CreationResult::created).findFirst().orElseThrow().request().getId();
         assertThat(results).allSatisfy(result -> assertThat(result.request().getId()).isEqualTo(winnerId));
         assertThat(countRows(externalId)).isEqualTo(1);
     }
