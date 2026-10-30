@@ -22,7 +22,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,7 +52,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
 
     @Override
     public int processDueRequests() {
-        List<UUID> dueIds = repository.findIdsReadyForProcessing(now(), Limit.of(properties.batchSize()));
+        List<UUID> dueIds = repository.findIdsReadyForProcessing(clock.instant(), Limit.of(properties.batchSize()));
         int processed = 0;
         for (UUID id : dueIds) {
             if (process(id)) {
@@ -65,7 +64,7 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
 
     @Override
     public int recoverStuckRequests() {
-        Instant threshold = now().minus(properties.processingLease());
+        Instant threshold = clock.instant().minus(properties.processingLease());
         List<UUID> stuckIds = repository.findIdsStuckInProcessing(threshold, Limit.of(properties.batchSize()));
         int recovered = 0;
         for (UUID id : stuckIds) {
@@ -108,10 +107,10 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
         try {
             return Optional.ofNullable(transactionTemplate.execute(tx -> {
                 ActivationRequest request = repository.findById(id).orElse(null);
-                if (request == null || !request.isReadyForProcessing(now())) {
+                if (request == null || !request.isReadyForProcessing(clock.instant())) {
                     return null;
                 }
-                request.startProcessing(now());
+                request.startProcessing(clock.instant());
                 return repository.saveAndFlush(request);
             }));
         } catch (OptimisticLockingFailureException e) {
@@ -134,8 +133,8 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
             transactionTemplate.executeWithoutResult(tx -> {
                 ActivationRequest request = repository.findById(id).orElseThrow();
                 switch (result) {
-                    case ProviderResult.Activated activated -> request.complete(now());
-                    case ProviderResult.Rejected rejected -> request.fail(rejected.reason(), now());
+                    case ProviderResult.Activated activated -> request.complete(clock.instant());
+                    case ProviderResult.Rejected rejected -> request.fail(rejected.reason(), clock.instant());
                     case ProviderResult.TemporaryFailure failure ->
                             handleTemporaryFailure(request, failure.reason(), failure.retryAfter());
                 }
@@ -151,17 +150,14 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
     }
 
     private void handleTemporaryFailure(ActivationRequest request, String reason, Duration retryAfter) {
+        Instant now = clock.instant();
         if (request.getAttempts() >= properties.maxAttempts()) {
             request.fail("Limite de %d tentativas atingido. Último erro: %s"
-                    .formatted(request.getAttempts(), reason), now());
+                    .formatted(request.getAttempts(), reason), now);
             return;
         }
         Duration delay = BackoffUtils.nextDelay(request.getAttempts(), properties.initialBackoff(),
                 properties.maxBackoff(), retryAfter);
-        request.scheduleRetry(now().plus(delay), reason, now());
-    }
-
-    private Instant now() {
-        return clock.instant().truncatedTo(ChronoUnit.MILLIS);
+        request.scheduleRetry(now.plus(delay), reason, now);
     }
 }

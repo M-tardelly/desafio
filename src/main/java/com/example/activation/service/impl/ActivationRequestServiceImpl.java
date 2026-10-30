@@ -19,8 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,7 +45,7 @@ public class ActivationRequestServiceImpl implements ActivationRequestService {
 
         try {
             ActivationRequest request = ActivationRequest.create(command.clientId(), command.externalId(), command.customerId(),
-                    command.productCode(), command.correlationId(), now());
+                    command.productCode(), command.correlationId(), clock.instant());
             ActivationRequest saved = repository.saveAndFlush(request);
             log.info("Activation request created id={} externalId={}", saved.getId(), saved.getExternalId());
             return CreationResult.created(saved);
@@ -86,9 +84,5 @@ public class ActivationRequestServiceImpl implements ActivationRequestService {
             throw new DuplicateRequestConflictException(command.externalId(), existing.getId());
         }
         return CreationResult.existing(existing);
-    }
-
-    private Instant now() {
-        return clock.instant().truncatedTo(ChronoUnit.MILLIS);
     }
 }
