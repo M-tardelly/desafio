@@ -8,6 +8,7 @@ import com.example.activation.model.ActivationRequest;
 import com.example.activation.model.ActivationStatus;
 import com.example.activation.repository.ActivationRequestRepository;
 import com.example.activation.service.ActivationRequestService;
+import com.example.activation.utils.LogBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -47,13 +48,20 @@ public class ActivationRequestServiceImpl implements ActivationRequestService {
             ActivationRequest request = ActivationRequest.create(command.clientId(), command.externalId(), command.customerId(),
                     command.productCode(), command.correlationId(), clock.instant());
             ActivationRequest saved = repository.saveAndFlush(request);
-            log.info("Activation request created id={} externalId={}", saved.getId(), saved.getExternalId());
+            LogBuilder.info(log, "Activation request created")
+                    .with("requestId", saved.getId())
+                    .with("externalId", saved.getExternalId())
+                    .with("clientId", saved.getClientId())
+                    .log();
             return CreationResult.created(saved);
         } catch (DataIntegrityViolationException e) {
             ActivationRequest winner = repository.findByClientIdAndExternalId(command.clientId(), command.externalId())
                     .orElseThrow(() -> e);
-            log.info("Concurrent duplicate detected for externalId={}, returning request {}",
-                    command.externalId(), winner.getId());
+            LogBuilder.info(log, "Concurrent duplicate detected, returning existing request")
+                    .with("requestId", winner.getId())
+                    .with("externalId", command.externalId())
+                    .with("clientId", command.clientId())
+                    .log();
             return replay(winner, command);
         }
     }

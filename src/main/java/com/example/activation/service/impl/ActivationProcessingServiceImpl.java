@@ -10,6 +10,7 @@ import com.example.activation.service.ActivationProcessingService;
 import com.example.activation.service.ProviderService;
 import com.example.activation.utils.BackoffUtils;
 import com.example.activation.utils.CorrelationIdUtils;
+import com.example.activation.utils.LogBuilder;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +74,9 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
                     recovered++;
                 }
             } catch (OptimisticLockingFailureException e) {
-                log.debug("Request {} changed while being recovered, skipping", id);
+                LogBuilder.debug(log, "Request changed while being recovered, skipping")
+                        .with("requestId", id)
+                        .log();
             }
         }
         return recovered;
@@ -85,7 +88,11 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
                 || !request.getUpdatedAt().isBefore(threshold)) {
             return false;
         }
-        log.warn("Request {} stuck in PROCESSING since {}, rescheduling", id, request.getUpdatedAt());
+        LogBuilder.warn(log, "Request stuck in PROCESSING, rescheduling")
+                .with("requestId", id)
+                .with("processingSince", request.getUpdatedAt())
+                .with("attempts", request.getAttempts())
+                .log();
         handleTemporaryFailure(request, "Processamento interrompido antes da resposta do provedor", null);
         return true;
     }
@@ -114,7 +121,9 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
                 return repository.saveAndFlush(request);
             }));
         } catch (OptimisticLockingFailureException e) {
-            log.debug("Request {} already claimed by another worker", id);
+            LogBuilder.debug(log, "Request already claimed by another worker")
+                    .with("requestId", id)
+                    .log();
             return Optional.empty();
         }
     }
@@ -123,7 +132,10 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
         try {
             return providerService.activate(request);
         } catch (RuntimeException e) {
-            log.error("Unexpected error calling provider for request {}", request.getId(), e);
+            LogBuilder.error(log, "Unexpected error calling provider")
+                    .with("requestId", request.getId())
+                    .exception(e)
+                    .log();
             return new ProviderResult.TemporaryFailure("Erro inesperado na integração com o provedor", null);
         }
     }
@@ -138,14 +150,22 @@ public class ActivationProcessingServiceImpl implements ActivationProcessingServ
                     case ProviderResult.TemporaryFailure failure ->
                             handleTemporaryFailure(request, failure.reason(), failure.retryAfter());
                 }
-                log.info("Request {} is now {} after attempt {}", id, request.getStatus(), request.getAttempts());
+                LogBuilder.info(log, "Provider result applied")
+                        .with("requestId", id)
+                        .with("status", request.getStatus())
+                        .with("attempts", request.getAttempts())
+                        .with("lastError", request.getLastError())
+                        .log();
                 meterRegistry.counter("activation.requests.attempts", "result", request.getStatus().name())
                         .increment();
             });
         } catch (OptimisticLockingFailureException | InvalidStatusTransitionException e) {
             // A solicitação foi reagendada por recoverStuckRequests enquanto a chamada estava em andamento.
             // O próximo envio usa a mesma chave de idempotência, então o provedor não ativa duas vezes.
-            log.warn("Discarding provider result for request {}: {}", id, e.getMessage());
+            LogBuilder.warn(log, "Discarding provider result, request changed concurrently")
+                    .with("requestId", id)
+                    .with("reason", e.getMessage())
+                    .log();
         }
     }
 

@@ -1,14 +1,22 @@
 package com.example.activation;
 
+import com.example.activation.utils.LogBuilder;
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import org.slf4j.Logger;
+
+import java.util.Set;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 @AnalyzeClasses(packages = "com.example.activation", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
+
+    private static final Set<String> LOG_METHODS = Set.of("trace", "debug", "info", "warn", "error");
 
     @ArchTest
     static final ArchRule controllersDependOnServiceInterfacesOnly = noClasses()
@@ -30,4 +38,15 @@ class ArchitectureTest {
             .that().resideInAPackage("..model..")
             .should().dependOnClassesThat()
             .resideInAnyPackage("..controller..", "..service..", "..repository..", "..dto..", "..mapper..", "..handler..");
+
+    @ArchTest
+    static final ArchRule logsGoThroughLogBuilder = noClasses()
+            .that().doNotBelongToAnyOf(LogBuilder.class)
+            .should().callMethodWhere(new DescribedPredicate<JavaMethodCall>("call a log method of org.slf4j.Logger") {
+                @Override
+                public boolean test(JavaMethodCall call) {
+                    return call.getTargetOwner().isAssignableTo(Logger.class) && LOG_METHODS.contains(call.getName());
+                }
+            })
+            .because("os logs devem seguir o padrão do LogBuilder");
 }

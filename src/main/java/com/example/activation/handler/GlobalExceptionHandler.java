@@ -5,6 +5,7 @@ import com.example.activation.exception.DuplicateRequestConflictException;
 import com.example.activation.exception.InvalidStatusTransitionException;
 import com.example.activation.exception.RequestNotFoundException;
 import com.example.activation.utils.CorrelationIdUtils;
+import com.example.activation.utils.LogBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -48,7 +49,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler({InvalidStatusTransitionException.class, OptimisticLockingFailureException.class})
     ProblemDetail handleStateConflict(RuntimeException ex) {
-        log.warn("State conflict: {}", ex.getMessage());
+        LogBuilder.warn(log, "State conflict")
+                .with("reason", ex.getMessage())
+                .log();
         return problem(HttpStatus.CONFLICT, "state-conflict", "Conflito de estado",
                 "A solicitação foi alterada por outra operação. Tente novamente.");
     }
@@ -60,7 +63,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail handleUnexpected(Exception ex) {
-        log.error("Unexpected error", ex);
+        LogBuilder.error(log, "Unexpected error")
+                .exception(ex)
+                .log();
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Erro inesperado",
                 "Ocorreu um erro inesperado. Informe o traceId ao suporte.");
     }

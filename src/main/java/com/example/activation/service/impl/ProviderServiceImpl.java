@@ -8,6 +8,7 @@ import com.example.activation.mapper.ActivationRequestMapper;
 import com.example.activation.model.ActivationRequest;
 import com.example.activation.service.ProviderService;
 import com.example.activation.utils.CorrelationIdUtils;
+import com.example.activation.utils.LogBuilder;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
@@ -73,10 +74,16 @@ public class ProviderServiceImpl implements ProviderService {
                     .body(mapper.toProviderRequest(request))
                     .exchange((httpRequest, response) -> toResult(response.getStatusCode(), response.getHeaders()));
         } catch (ResourceAccessException e) {
-            log.warn("Provider call for request {} failed: {}", request.getId(), e.getMessage());
+            LogBuilder.warn(log, "Provider call failed")
+                    .with("requestId", request.getId())
+                    .with("reason", e.getMessage())
+                    .log();
             return new TemporaryFailure(describeIoFailure(e), null);
         } catch (RestClientException e) {
-            log.warn("Provider call for request {} failed", request.getId(), e);
+            LogBuilder.warn(log, "Provider call failed")
+                    .with("requestId", request.getId())
+                    .exception(e)
+                    .log();
             return new TemporaryFailure("Erro na comunicação com o provedor", null);
         }
     }
